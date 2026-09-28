@@ -96,6 +96,16 @@ class CollectionAccountingService
         });
     }
 
+    public function postableAccountId(int $stationId, string $code): int
+    {
+        return $this->account($stationId, $code)->id;
+    }
+
+    public function openPeriodForDate(int $stationId, string $date): FiscalPeriod
+    {
+        return $this->period($stationId, $date);
+    }
+
     private function account(int $stationId, string $code): ChartOfAccount
     {
         return ChartOfAccount::query()->where('station_id', $stationId)->where('code', $code)
