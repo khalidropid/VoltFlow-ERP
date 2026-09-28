@@ -14,13 +14,17 @@ use App\Models\PayrollRun;
 use App\Models\PayrollSlip;
 use App\Models\PayrollSlipLine;
 use App\Services\Accounting\JournalEntryService;
+use App\Services\Audit\AuditLogger;
 use App\Support\Decimal;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class PayrollService
 {
-    public function __construct(private readonly JournalEntryService $journalEntryService) {}
+    public function __construct(
+        private readonly JournalEntryService $journalEntryService,
+        private readonly AuditLogger $auditLogger,
+    ) {}
 
     public function generateSlip(
         int $payrollRunId,
@@ -151,6 +155,14 @@ class PayrollService
                 $slip->lines()->create($line);
             }
 
+            $this->auditLogger->record(
+                'payroll_slip.generated',
+                $slip,
+                null,
+                $slip->only(['payroll_run_id', 'employee_id', 'slip_number', 'gross_amount', 'deduction_amount', 'net_amount', 'status']),
+                $run->station_id
+            );
+
             foreach ($overtime as $record) {
                 $record->update(['payroll_slip_id' => $slip->id]);
             }
@@ -208,6 +220,13 @@ class PayrollService
             ]);
 
             $this->recalculateSlip($slip);
+            $this->auditLogger->record(
+                'employee_advance.repayment_added',
+                $advance,
+                ['balance' => $advance->getOriginal('balance')],
+                ['balance' => $newBalance, 'status' => $advance->status],
+                $employee->station_id
+            );
 
             return $slip->fresh(['lines.salaryComponent', 'advanceRepayments.employeeAdvance']);
         });
@@ -230,6 +249,13 @@ class PayrollService
             }
 
             $slip->update(['status' => 'approved']);
+            $this->auditLogger->record(
+                'payroll_slip.approved',
+                $slip,
+                ['status' => 'draft'],
+                ['status' => 'approved'],
+                $slip->payrollRun()->firstOrFail()->station_id
+            );
 
             return $slip->fresh(['lines.salaryComponent', 'advanceRepayments']);
         });
@@ -371,6 +397,13 @@ class PayrollService
             );
 
             $slip->update(['journal_entry_id' => $entry->id]);
+            $this->auditLogger->record(
+                'payroll_slip.posted',
+                $slip,
+                ['journal_entry_id' => null, 'status' => 'approved'],
+                ['journal_entry_id' => $entry->id, 'status' => 'approved'],
+                $run->station_id
+            );
 
             return $slip->fresh(['journalEntry.lines']);
         });
@@ -483,6 +516,13 @@ class PayrollService
 
             $payment->update(['journal_entry_id' => $entry->id]);
             $slip->update(['status' => 'paid']);
+            $this->auditLogger->record(
+                'payroll_payment.posted',
+                $payment,
+                null,
+                $payment->only(['transaction_uuid', 'station_id', 'payroll_slip_id', 'cash_account_id', 'amount', 'method', 'status']),
+                $run->station_id
+            );
 
             return $payment->fresh(['payrollSlip', 'cashAccount', 'journalEntry']);
         });
@@ -561,6 +601,13 @@ class PayrollService
                 'voided_by' => $actor?->id,
             ]);
             $slip->update(['status' => 'approved']);
+            $this->auditLogger->record(
+                'payroll_payment.voided',
+                $payment,
+                ['status' => 'posted'],
+                $payment->only(['status', 'voided_at', 'voided_by', 'reversal_journal_entry_id']),
+                $run->station_id
+            );
 
             return $payment->fresh(['journalEntry', 'reversalJournalEntry', 'payrollSlip']);
         });
