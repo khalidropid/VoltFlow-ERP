@@ -72,7 +72,7 @@ return new class extends Migration {
             $t->decimal('hours',20,4); $t->decimal('rate',20,4)->default(0); $t->decimal('amount',20,4)->default(0); $t->timestamps();
         });
         Schema::create('maintenance_work_order_expenses', function(Blueprint $t){
-            $t->id(); $t->foreignId('maintenance_work_order_id')->constrained()->cascadeOnDelete(); $t->string('description'); $t->decimal('amount',20,4); $t->timestamps();
+            $t->id(); $t->foreignId('maintenance_work_order_id')->constrained('maintenance_work_orders', 'id', 'mwo_expenses_work_order_fk')->cascadeOnDelete(); $t->string('description'); $t->decimal('amount',20,4); $t->timestamps();
         });
     }
     public function down(): void {
