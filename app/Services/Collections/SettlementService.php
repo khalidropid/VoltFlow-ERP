@@ -20,8 +20,11 @@ class SettlementService
             if ($existing) {
                 if (
                     $existing->station_id !== $stationId ||
-                    Decimal::normalize((string) $existing->amount) !== Decimal::normalize($amount) ||
-                    $existing->cash_account_id !== $cashAccountId
+                    $existing->collector_account_id !== $collectorId ||
+                    $existing->cash_account_id !== $cashAccountId ||
+                    $existing->number !== $number ||
+                    $existing->settled_at?->format('Y-m-d H:i:s') !== date('Y-m-d H:i:s', strtotime($settledAt)) ||
+                    Decimal::normalize((string) $existing->amount) !== Decimal::normalize($amount)
                 ) {
                     throw new CollectionException('The transaction UUID is already associated with a different settlement.');
                 }
