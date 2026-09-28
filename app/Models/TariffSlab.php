@@ -10,6 +10,8 @@ class TariffSlab extends Model
 
     protected function casts(): array
     {
-        return ['from_unit' => 'decimal:4', 'to_unit' => 'decimal:4', 'rate' => 'decimal:4'];
+        return ['from_unit'=>'decimal:4','to_unit'=>'decimal:4','rate'=>'decimal:4'];
     }
+
+    public function tariff() { return $this->belongsTo(Tariff::class); }
 }
