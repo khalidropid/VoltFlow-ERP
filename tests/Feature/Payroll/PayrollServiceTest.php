@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Payroll;
 
+use App\Models\AuditLog;
 use App\Models\CashAccount;
 use App\Support\Decimal;
 use App\Models\ChartOfAccount;
@@ -90,6 +91,12 @@ class PayrollServiceTest extends TestCase
         $this->assertSame('5000.0000', $slip->deduction_amount);
         $this->assertSame('107000.0000', $slip->net_amount);
         $this->assertSame(4, $slip->lines->count());
+        $this->assertDatabaseHas('audit_logs', [
+            'event' => 'payroll_slip.generated',
+            'auditable_type' => 'App\\Models\\PayrollSlip',
+            'auditable_id' => $slip->id,
+            'station_id' => $station->id,
+        ]);
 
         $slip = $service->addAdvanceRepayment(
             $slip->id,
@@ -110,6 +117,18 @@ class PayrollServiceTest extends TestCase
 
         $this->assertSame('approved', $slip->status);
         $this->assertNull($slip->journal_entry_id);
+        $this->assertDatabaseHas('audit_logs', [
+            'event' => 'employee_advance.repayment_added',
+            'auditable_type' => 'App\\Models\\EmployeeAdvance',
+            'auditable_id' => $advance->id,
+            'station_id' => $station->id,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'event' => 'payroll_slip.approved',
+            'auditable_type' => 'App\\Models\\PayrollSlip',
+            'auditable_id' => $slip->id,
+            'station_id' => $station->id,
+        ]);
     }
 
     public function test_posting_creates_balanced_payroll_entry_with_employee_dimension(): void
@@ -147,6 +166,12 @@ class PayrollServiceTest extends TestCase
         $this->assertSame(3, $entry->lines->count());
         $this->assertSame($employee->id, $entry->lines->first()->employee_id);
         $this->assertSame($slip->id, $entry->source_id);
+        $this->assertDatabaseHas('audit_logs', [
+            'event' => 'payroll_slip.posted',
+            'auditable_type' => 'App\\Models\\PayrollSlip',
+            'auditable_id' => $slip->id,
+            'station_id' => $station->id,
+        ]);
     }
 
     public function test_payment_is_idempotent_and_void_restores_payable(): void
@@ -186,6 +211,12 @@ class PayrollServiceTest extends TestCase
         $this->assertSame('voided', $voided->status);
         $this->assertNotNull($voided->reversal_journal_entry_id);
         $this->assertSame('approved', $slip->fresh()->status);
+        $this->assertDatabaseHas('audit_logs', [
+            'event' => 'payroll_payment.voided',
+            'auditable_type' => 'App\\Models\\PayrollPayment',
+            'auditable_id' => $voided->id,
+            'station_id' => $station->id,
+        ]);
 
         $replacement = $service->paySlip(
             $slip->id,
