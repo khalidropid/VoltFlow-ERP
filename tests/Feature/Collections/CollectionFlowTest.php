@@ -8,6 +8,8 @@ use App\Models\CollectorAccount;
 use App\Models\Customer;
 use App\Models\FiscalPeriod;
 use App\Models\Invoice;
+use App\Models\JournalEntry;
+use App\Models\CollectionSettlement;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\Collections\CollectionException;
@@ -43,6 +45,82 @@ class CollectionFlowTest extends TestCase
         $this->assertNotNull($payment->journal_entry_id);
         $this->assertSame('40.0000', (string) $invoice->fresh()->paid_amount);
         $this->assertSame('partially_paid', $invoice->fresh()->status);
+
+        $entry = JournalEntry::with('lines')->findOrFail($payment->journal_entry_id);
+        $this->assertSame('40.0000', (string) $entry->lines->sum(fn ($line) => (float) $line->debit));
+        $this->assertSame('40.0000', (string) $entry->lines->sum(fn ($line) => (float) $line->credit));
+    }
+
+    public function test_duplicate_payment_uuid_is_idempotent_and_does_not_double_collect(): void
+    {
+        [$station, $user, $collector, $cash] = $this->fixture();
+        $customer = Customer::create(['station_id' => $station->id, 'code' => 'C-001', 'name' => 'Customer']);
+        $invoice = Invoice::create([
+            'transaction_uuid' => '11111111-1111-4111-8111-111111111111',
+            'station_id' => $station->id, 'customer_id' => $customer->id, 'number' => 'INV-001',
+            'invoice_date' => '2026-09-28', 'subtotal' => '100.0000', 'discount' => '0',
+            'tax' => '0', 'total' => '100.0000', 'paid_amount' => '0', 'status' => 'issued',
+        ]);
+
+        $uuid = '22222222-2222-4222-8222-222222222222';
+        $first = app(PaymentService::class)->collect($station->id, $user->id, $customer->id, $invoice->id, $cash->id, $uuid, 'RCPT-001', '2026-09-28 10:00:00', '40.0000');
+        $second = app(PaymentService::class)->collect($station->id, $user->id, $customer->id, $invoice->id, $cash->id, $uuid, 'RCPT-001', '2026-09-28 10:00:00', '40.0000');
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame('40.0000', (string) $collector->fresh()->balance);
+        $this->assertSame('40.0000', (string) $invoice->fresh()->paid_amount);
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertDatabaseCount('journal_entries', 1);
+    }
+
+    public function test_payment_cannot_exceed_invoice_balance(): void
+    {
+        [$station, $user, $collector, $cash] = $this->fixture();
+        $customer = Customer::create(['station_id' => $station->id, 'code' => 'C-001', 'name' => 'Customer']);
+        $invoice = Invoice::create([
+            'transaction_uuid' => '11111111-1111-4111-8111-111111111111',
+            'station_id' => $station->id, 'customer_id' => $customer->id, 'number' => 'INV-001',
+            'invoice_date' => '2026-09-28', 'subtotal' => '100.0000', 'discount' => '0',
+            'tax' => '0', 'total' => '100.0000', 'paid_amount' => '90.0000', 'status' => 'partially_paid',
+        ]);
+
+        $this->expectException(CollectionException::class);
+        app(PaymentService::class)->collect($station->id, $user->id, $customer->id, $invoice->id, $cash->id, '22222222-2222-4222-8222-222222222222', 'RCPT-001', '2026-09-28 10:00:00', '10.0001');
+    }
+
+    public function test_successful_settlement_reduces_collector_balance_and_posts_to_gl(): void
+    {
+        [$station, $user, $collector, $cash] = $this->fixture();
+        $collector->update(['balance' => '40.0000']);
+
+        $settlement = app(SettlementService::class)->settle(
+            $station->id, $user->id, $cash->id, '33333333-3333-4333-8333-333333333333',
+            'SET-001', '2026-09-28 12:00:00', '40.0000', $user->id
+        );
+
+        $this->assertSame('0.0000', (string) $collector->fresh()->balance);
+        $this->assertNotNull($settlement->journal_entry_id);
+        $this->assertDatabaseCount('collection_settlements', 1);
+        $this->assertDatabaseCount('journal_entries', 1);
+
+        $entry = JournalEntry::with('lines')->findOrFail($settlement->journal_entry_id);
+        $this->assertSame('40.0000', number_format($entry->lines->sum(fn ($line) => (float) $line->debit), 4, '.', ''));
+        $this->assertSame('40.0000', number_format($entry->lines->sum(fn ($line) => (float) $line->credit), 4, '.', ''));
+    }
+
+    public function test_duplicate_settlement_uuid_is_idempotent(): void
+    {
+        [$station, $user, $collector, $cash] = $this->fixture();
+        $collector->update(['balance' => '40.0000']);
+
+        $uuid = '33333333-3333-4333-8333-333333333333';
+        $first = app(SettlementService::class)->settle($station->id, $user->id, $cash->id, $uuid, 'SET-001', '2026-09-28 12:00:00', '40.0000', $user->id);
+        $second = app(SettlementService::class)->settle($station->id, $user->id, $cash->id, $uuid, 'SET-001', '2026-09-28 12:00:00', '40.0000', $user->id);
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame('0.0000', (string) $collector->fresh()->balance);
+        $this->assertDatabaseCount('collection_settlements', 1);
+        $this->assertDatabaseCount('journal_entries', 1);
     }
 
     public function test_settlement_cannot_exceed_collector_balance(): void
@@ -54,7 +132,7 @@ class CollectionFlowTest extends TestCase
 
         app(SettlementService::class)->settle(
             $station->id, $user->id, $cash->id,
-            '33333333-3333-4333-8333-333333333333', 'SET-001',
+            '44444444-4444-4444-8444-444444444444', 'SET-001',
             '2026-09-28 12:00:00', '25.0001', $user->id
         );
     }
@@ -67,7 +145,7 @@ class CollectionFlowTest extends TestCase
 
         FiscalPeriod::create(['station_id' => $station->id, 'name' => '2026', 'starts_on' => '2026-01-01', 'ends_on' => '2026-12-31', 'status' => 'open']);
         $ar = ChartOfAccount::create(['station_id' => $station->id, 'code' => '1200', 'name' => 'Accounts Receivable', 'type' => 'asset']);
-        $revenue = ChartOfAccount::create(['station_id' => $station->id, 'code' => '4100', 'name' => 'Electricity Revenue', 'type' => 'revenue']);
+        ChartOfAccount::create(['station_id' => $station->id, 'code' => '4100', 'name' => 'Electricity Revenue', 'type' => 'revenue']);
         $collectorGl = ChartOfAccount::create(['station_id' => $station->id, 'code' => '1110', 'name' => 'Collector Cash', 'type' => 'asset']);
         $cashGl = ChartOfAccount::create(['station_id' => $station->id, 'code' => '1100', 'name' => 'Main Cash', 'type' => 'asset']);
 
