@@ -14,6 +14,7 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware(['station.access', 'idempotent'])->group(function () {
             Route::post('/collections', [CollectionController::class, 'store']);
+            Route::post('/collections/{payment}/void', [CollectionController::class, 'void']);
             Route::post('/collection-settlements', [SettlementController::class, 'store']);
         });
     });
