@@ -71,12 +71,15 @@ class CollectionAccountingService
     public function postSettlement(CollectionSettlement $settlement, ?int $actorId = null): CollectionSettlement
     {
         return DB::transaction(function () use ($settlement, $actorId) {
+            $settlement->refresh();
+            if ($settlement->journal_entry_id) return $settlement;
+
             $collector = CollectorAccount::query()->whereKey($settlement->collector_account_id)->firstOrFail();
             $cash = CashAccount::query()->whereKey($settlement->cash_account_id)->firstOrFail();
             if (!$collector->account_id || !$cash->account_id) throw new RuntimeException('Settlement GL accounts are not configured.');
 
             $period = $this->period($settlement->station_id, $settlement->settled_at->format('Y-m-d'));
-            app(JournalEntryService::class)->createAndPost(
+            $entry = app(JournalEntryService::class)->createAndPost(
                 $settlement->station_id, $period->id, 'SET-' . $settlement->number,
                 $settlement->settled_at->format('Y-m-d'), 'Collection settlement ' . $settlement->number,
                 [
@@ -85,6 +88,10 @@ class CollectionAccountingService
                 ],
                 $actorId ? \App\Models\User::find($actorId) : null, 'collection_settlement', $settlement->id
             );
+
+            $settlement->journal_entry_id = $entry->id;
+            $settlement->save();
+
             return $settlement;
         });
     }
