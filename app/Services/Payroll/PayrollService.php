@@ -240,9 +240,20 @@ class PayrollService
             }
 
             $run = $slip->payrollRun()->firstOrFail();
-            $period = $run->payrollPeriod()->firstOrFail();
-            if ($period->status !== 'open') {
-                throw new PayrollException('Payroll fiscal period must be open for posting.');
+            $payrollPeriod = $run->payrollPeriod()->firstOrFail();
+            if ($payrollPeriod->status !== 'open') {
+                throw new PayrollException('Payroll period must be open for posting.');
+            }
+
+            $period = FiscalPeriod::query()
+                ->where('station_id', $run->station_id)
+                ->where('status', 'open')
+                ->where('starts_on', '<=', $payrollPeriod->ends_on)
+                ->where('ends_on', '>=', $payrollPeriod->ends_on)
+                ->first();
+
+            if (!$period) {
+                throw new PayrollException('No open fiscal period covers the payroll posting date.');
             }
 
             $employee = $slip->employee()->firstOrFail();
