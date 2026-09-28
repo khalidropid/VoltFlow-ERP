@@ -21,7 +21,6 @@ return new class extends Migration {
     {
         Schema::table('journal_entries', function (Blueprint $table) {
             $table->dropForeign(['reversal_of_journal_entry_id']);
-            $table->dropIndex(['source_type', 'source_id']);
             $table->dropColumn('reversal_of_journal_entry_id');
         });
     }
