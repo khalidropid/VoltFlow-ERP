@@ -23,3 +23,5 @@ class SupplierPaymentAllocation extends Model
     {
         return $this->belongsTo(SupplierInvoice::class);
     }
+
+}
