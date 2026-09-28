@@ -7,7 +7,6 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Support\Decimal;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 class PaymentService
 {
@@ -16,10 +15,7 @@ class PaymentService
         int $cashAccountId, string $transactionUuid, string $receiptNumber,
         string $paidAt, string $amount, string $method = 'cash', ?string $notes = null
     ): Payment {
-        return DB::transaction(function () use (
-            $stationId, $collectorId, $customerId, $invoiceId, $cashAccountId,
-            $transactionUuid, $receiptNumber, $paidAt, $amount, $method, $notes
-        ) {
+        return DB::transaction(function () use ($stationId, $collectorId, $customerId, $invoiceId, $cashAccountId, $transactionUuid, $receiptNumber, $paidAt, $amount, $method, $notes) {
             $existing = Payment::query()->where('transaction_uuid', $transactionUuid)->first();
             if ($existing) {
                 if ($existing->station_id !== $stationId || Decimal::normalize((string) $existing->amount) !== Decimal::normalize($amount)) {
@@ -28,13 +24,8 @@ class PaymentService
                 return $existing;
             }
 
-            $collector = CollectorAccount::query()
-                ->where('station_id', $stationId)
-                ->where('collector_id', $collectorId)
-                ->where('status', 'open')
-                ->lockForUpdate()
-                ->first();
-
+            $collector = CollectorAccount::query()->where('station_id', $stationId)->where('collector_id', $collectorId)
+                ->where('status', 'open')->lockForUpdate()->first();
             if (!$collector) throw new CollectionException('The collector does not have an open collection account.');
 
             $amount = Decimal::normalize($amount);
@@ -47,35 +38,24 @@ class PaymentService
                 }
 
                 $remaining = Decimal::sub((string) $invoice->total, (string) $invoice->paid_amount);
-                if (Decimal::compare($amount, $remaining) > 0) {
-                    throw new CollectionException('Payment exceeds the invoice outstanding balance.');
-                }
+                if (Decimal::compare($amount, $remaining) > 0) throw new CollectionException('Payment exceeds the invoice outstanding balance.');
 
                 $invoice->paid_amount = Decimal::add((string) $invoice->paid_amount, $amount);
-                $invoice->status = Decimal::compare((string) $invoice->paid_amount, (string) $invoice->total) === 0
-                    ? 'paid' : 'partially_paid';
+                $invoice->status = Decimal::compare((string) $invoice->paid_amount, (string) $invoice->total) === 0 ? 'paid' : 'partially_paid';
                 $invoice->save();
             }
 
             $payment = Payment::create([
-                'transaction_uuid' => $transactionUuid,
-                'station_id' => $stationId,
-                'customer_id' => $customerId,
-                'invoice_id' => $invoiceId,
-                'collector_id' => $collectorId,
-                'cash_account_id' => $cashAccountId,
-                'receipt_number' => $receiptNumber,
-                'paid_at' => $paidAt,
-                'amount' => $amount,
-                'method' => $method,
-                'status' => 'posted',
-                'notes' => $notes,
+                'transaction_uuid' => $transactionUuid, 'station_id' => $stationId, 'customer_id' => $customerId,
+                'invoice_id' => $invoiceId, 'collector_id' => $collectorId, 'cash_account_id' => $cashAccountId,
+                'receipt_number' => $receiptNumber, 'paid_at' => $paidAt, 'amount' => $amount,
+                'method' => $method, 'status' => 'posted', 'notes' => $notes,
             ]);
 
             $collector->balance = Decimal::add((string) $collector->balance, $amount);
             $collector->save();
 
-            return $payment;
+            return app(\App\Services\Accounting\CollectionAccountingService::class)->postPayment($payment, $collectorId);
         }, 3);
     }
 }
