@@ -76,6 +76,36 @@ class CollectionFlowTest extends TestCase
         $this->assertDatabaseCount('journal_entries', 1);
     }
 
+    public function test_duplicate_payment_uuid_replays_after_collector_account_is_closed(): void
+    {
+        [$station, $user, $collector, $cash] = $this->fixture();
+        $customer = Customer::create(['station_id' => $station->id, 'code' => 'C-001', 'name' => 'Customer']);
+        $invoice = Invoice::create([
+            'transaction_uuid' => '11111111-1111-4111-8111-111111111111',
+            'station_id' => $station->id, 'customer_id' => $customer->id, 'number' => 'INV-001',
+            'invoice_date' => '2026-09-28', 'subtotal' => '100.0000', 'discount' => '0',
+            'tax' => '0', 'total' => '100.0000', 'paid_amount' => '0', 'status' => 'issued',
+        ]);
+
+        $uuid = '88888888-8888-4888-8888-888888888888';
+        $first = app(PaymentService::class)->collect(
+            $station->id, $user->id, $customer->id, $invoice->id, $cash->id,
+            $uuid, 'RCPT-008', '2026-09-28 10:00:00', '40.0000'
+        );
+
+        $collector->update(['status' => 'closed']);
+
+        $second = app(PaymentService::class)->collect(
+            $station->id, $user->id, $customer->id, $invoice->id, $cash->id,
+            $uuid, 'RCPT-008', '2026-09-28 10:00:00', '40.0000'
+        );
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertDatabaseCount('journal_entries', 1);
+        $this->assertSame('40.0000', (string) $collector->fresh()->balance);
+    }
+
     public function test_payment_uuid_cannot_be_reused_for_a_different_business_operation(): void
     {
         [$station, $user, $collector, $cash] = $this->fixture();
