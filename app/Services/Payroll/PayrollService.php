@@ -76,6 +76,7 @@ class PayrollService
                 'salary_component_id' => null,
                 'description' => 'Base salary',
                 'line_type' => 'earning',
+                'source_type' => 'base_salary',
                 'amount' => $gross,
             ]];
 
@@ -101,6 +102,7 @@ class PayrollService
                         'salary_component_id' => $component->id,
                         'description' => $component->name,
                         'line_type' => 'earning',
+                        'source_type' => 'component',
                         'amount' => $amount,
                     ];
                 } else {
@@ -109,6 +111,7 @@ class PayrollService
                         'salary_component_id' => $component->id,
                         'description' => $component->name,
                         'line_type' => 'deduction',
+                        'source_type' => 'component',
                         'amount' => $amount,
                     ];
                 }
@@ -131,6 +134,7 @@ class PayrollService
                     'salary_component_id' => null,
                     'description' => 'Approved overtime',
                     'line_type' => 'earning',
+                    'source_type' => 'overtime',
                     'amount' => $amount,
                 ];
             }
@@ -210,6 +214,7 @@ class PayrollService
                 'salary_component_id' => null,
                 'description' => 'Advance repayment',
                 'line_type' => 'deduction',
+                'source_type' => 'advance_repayment',
                 'amount' => $normalized,
             ]);
 
@@ -319,7 +324,7 @@ class PayrollService
                 if ($line->line_type !== 'deduction') {
                     continue;
                 }
-                $isAdvance = strcasecmp(trim($line->description), 'Advance repayment') === 0;
+                $isAdvance = $line->source_type === 'advance_repayment';
                 if ($isAdvance) {
                     continue;
                 }
@@ -355,7 +360,7 @@ class PayrollService
             }
 
             foreach ($slip->lines as $line) {
-                if ($line->line_type !== 'deduction' || strcasecmp(trim($line->description), 'Advance repayment') === 0) {
+                if ($line->line_type !== 'deduction' || $line->source_type === 'advance_repayment') {
                     continue;
                 }
                 $component = $line->salaryComponent;
