@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Services\Collections\PaymentReversalService;
 use App\Services\Collections\PaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,4 +42,24 @@ class CollectionController extends Controller
 
         return response()->json(['data' => $payment], 201);
     }
+
+    public function void(Request $request, int $payment, PaymentReversalService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'station_id' => ['required', 'integer'],
+            'voided_at' => ['required', 'date'],
+            'reason' => ['required', 'string', 'min:3', 'max:1000'],
+        ]);
+
+        $paymentModel = $service->void(
+            paymentId: $payment,
+            stationId: $data['station_id'],
+            actorId: $request->user()->id,
+            voidedAt: $data['voided_at'],
+            reason: $data['reason'],
+        );
+
+        return response()->json(['data' => $paymentModel]);
+    }
 }
+
