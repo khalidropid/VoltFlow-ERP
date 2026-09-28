@@ -16,6 +16,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/collections', [CollectionController::class, 'store']);
             Route::post('/collections/{payment}/void', [CollectionController::class, 'void']);
             Route::post('/collection-settlements', [SettlementController::class, 'store']);
+            Route::post('/collection-settlements/{settlement}/void', [SettlementController::class, 'void']);
         });
     });
 });
