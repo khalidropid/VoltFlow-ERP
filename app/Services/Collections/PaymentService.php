@@ -24,9 +24,27 @@ class PaymentService
                 return $existing;
             }
 
-            $collector = CollectorAccount::query()->where('station_id', $stationId)->where('collector_id', $collectorId)
-                ->where('status', 'open')->lockForUpdate()->first();
-            if (!$collector) throw new CollectionException('The collector does not have an open collection account.');
+            $collector = CollectorAccount::query()
+                ->where('station_id', $stationId)
+                ->where('collector_id', $collectorId)
+                ->where('status', 'open')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$collector) {
+                throw new CollectionException('The collector does not have an open collection account.');
+            }
+
+            $cash = CashAccount::query()
+                ->whereKey($cashAccountId)
+                ->where('station_id', $stationId)
+                ->where('is_active', true)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$cash) {
+                throw new CollectionException('The cash/bank account is not active for this station.');
+            }
 
             $existing = Payment::query()->where('transaction_uuid', $transactionUuid)->first();
             if ($existing) {
@@ -35,38 +53,55 @@ class PaymentService
                 return $existing;
             }
 
-            $cash = CashAccount::query()->whereKey($cashAccountId)->where('station_id', $stationId)
-                ->where('is_active', true)->first();
-            if (!$cash) throw new CollectionException('The cash/bank account is not active for this station.');
-
             $amount = Decimal::normalize($amount);
-            if (Decimal::compare($amount, '0') <= 0) throw new CollectionException('Payment amount must be greater than zero.');
+            if (Decimal::compare($amount, '0') <= 0) {
+                throw new CollectionException('Payment amount must be greater than zero.');
+            }
 
             if ($invoiceId) {
-                $invoice = Invoice::query()->whereKey($invoiceId)->where('station_id', $stationId)->lockForUpdate()->firstOrFail();
+                $invoice = Invoice::query()
+                    ->whereKey($invoiceId)
+                    ->where('station_id', $stationId)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
                 if ($invoice->customer_id !== $customerId || in_array($invoice->status, ['void', 'paid'], true)) {
                     throw new CollectionException('The invoice cannot receive this payment.');
                 }
 
                 $remaining = Decimal::sub((string) $invoice->total, (string) $invoice->paid_amount);
-                if (Decimal::compare($amount, $remaining) > 0) throw new CollectionException('Payment exceeds the invoice outstanding balance.');
+
+                if (Decimal::compare($amount, $remaining) > 0) {
+                    throw new CollectionException('Payment exceeds the invoice outstanding balance.');
+                }
 
                 $invoice->paid_amount = Decimal::add((string) $invoice->paid_amount, $amount);
-                $invoice->status = Decimal::compare((string) $invoice->paid_amount, (string) $invoice->total) === 0 ? 'paid' : 'partially_paid';
+                $invoice->status = Decimal::compare((string) $invoice->paid_amount, (string) $invoice->total) === 0
+                    ? 'paid'
+                    : 'partially_paid';
                 $invoice->save();
             }
 
             $payment = Payment::create([
-                'transaction_uuid' => $transactionUuid, 'station_id' => $stationId, 'customer_id' => $customerId,
-                'invoice_id' => $invoiceId, 'collector_id' => $collectorId, 'cash_account_id' => $cashAccountId,
-                'receipt_number' => $receiptNumber, 'paid_at' => $paidAt, 'amount' => $amount,
-                'method' => $method, 'status' => 'posted', 'notes' => $notes,
+                'transaction_uuid' => $transactionUuid,
+                'station_id' => $stationId,
+                'customer_id' => $customerId,
+                'invoice_id' => $invoiceId,
+                'collector_id' => $collectorId,
+                'cash_account_id' => $cashAccountId,
+                'receipt_number' => $receiptNumber,
+                'paid_at' => $paidAt,
+                'amount' => $amount,
+                'method' => $method,
+                'status' => 'posted',
+                'notes' => $notes,
             ]);
 
             $collector->balance = Decimal::add((string) $collector->balance, $amount);
             $collector->save();
 
-            return app(\App\Services\Accounting\CollectionAccountingService::class)->postPayment($payment, $collectorId);
+            return app(\App\Services\Accounting\CollectionAccountingService::class)
+                ->postPayment($payment, $collectorId);
         }, 3);
     }
 
