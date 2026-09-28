@@ -2,6 +2,7 @@
 
 namespace App\Services\Collections;
 
+use App\Models\CashAccount;
 use App\Models\CollectorAccount;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -23,6 +24,10 @@ class PaymentService
                 }
                 return $existing;
             }
+
+            $cash = CashAccount::query()->whereKey($cashAccountId)->where('station_id', $stationId)
+                ->where('is_active', true)->first();
+            if (!$cash) throw new CollectionException('The cash/bank account is not active for this station.');
 
             $collector = CollectorAccount::query()->where('station_id', $stationId)->where('collector_id', $collectorId)
                 ->where('status', 'open')->lockForUpdate()->first();
