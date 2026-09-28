@@ -16,12 +16,12 @@ return new class extends Migration {
         $t->foreignId('inventory_account_id')->nullable()->after('standard_cost')->constrained('chart_of_accounts')->nullOnDelete();
         $t->foreignId('cogs_account_id')->nullable()->after('inventory_account_id')->constrained('chart_of_accounts')->nullOnDelete();
         $t->foreignId('expense_account_id')->nullable()->after('cogs_account_id')->constrained('chart_of_accounts')->nullOnDelete();
-        $t->index(['inventory_account_id','cogs_account_id','expense_account_id']);
+        $t->index(['inventory_account_id','cogs_account_id','expense_account_id'],'items_accounting_idx');
     });
     Schema::table('fuel_types',function(Blueprint $t){
         $t->foreignId('inventory_account_id')->nullable()->after('unit')->constrained('chart_of_accounts')->nullOnDelete();
         $t->foreignId('consumption_expense_account_id')->nullable()->after('inventory_account_id')->constrained('chart_of_accounts')->nullOnDelete();
-        $t->index(['inventory_account_id','consumption_expense_account_id']);
+        $t->index(['inventory_account_id','consumption_expense_account_id'],'fuel_accounting_idx');
     });
     Schema::table('warehouses',function(Blueprint $t){$t->foreignId('inventory_account_id')->nullable()->after('type')->constrained('chart_of_accounts')->nullOnDelete();});
     Schema::table('maintenance_work_orders',function(Blueprint $t){$t->foreignId('cost_center_id')->nullable()->after('asset_id')->constrained()->nullOnDelete();});
