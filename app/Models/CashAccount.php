@@ -8,7 +8,7 @@ class CashAccount extends Model
 {
     protected $fillable = ['station_id','code','name','type','account_id','is_active'];
 
-    protected function casts(): array { return ['is_active' => 'boolean']; }
+    protected function casts(): array { return ['is_active' => 'boolean', 'balance' => 'decimal:4']; }
 
     public function station() { return $this->belongsTo(Station::class); }
 }
