@@ -15,6 +15,13 @@ class SettlementService
         string $number, string $settledAt, string $amount, ?int $createdBy = null, ?string $notes = null
     ): CollectionSettlement {
         return DB::transaction(function () use ($stationId, $collectorId, $cashAccountId, $transactionUuid, $number, $settledAt, $amount, $createdBy, $notes) {
+            $collector = CollectorAccount::query()
+                ->where('station_id', $stationId)
+                ->where('collector_id', $collectorId)
+                ->where('status', 'open')
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $existing = CollectionSettlement::query()->where('transaction_uuid', $transactionUuid)->first();
 
             if ($existing) {
@@ -31,13 +38,6 @@ class SettlementService
 
                 return $existing;
             }
-
-            $collector = CollectorAccount::query()
-                ->where('station_id', $stationId)
-                ->where('collector_id', $collectorId)
-                ->where('status', 'open')
-                ->lockForUpdate()
-                ->firstOrFail();
 
             $cash = CashAccount::query()
                 ->whereKey($cashAccountId)
