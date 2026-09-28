@@ -21,28 +21,28 @@ class EnsureIdempotency
         $hash = hash('sha256', $request->getContent());
 
         return DB::transaction(function () use ($request, $next, $key, $scope, $hash) {
+            IdempotencyKey::query()->insertOrIgnore([
+                'key' => $key,
+                'scope' => $scope,
+                'user_id' => $request->user()?->id,
+                'request_hash' => $hash,
+                'expires_at' => now()->addHours(24),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
             $existing = IdempotencyKey::query()
                 ->where('key', $key)
                 ->where('scope', $scope)
                 ->lockForUpdate()
-                ->first();
+                ->firstOrFail();
 
-            if ($existing) {
-                if (!hash_equals($existing->request_hash, $hash)) {
-                    return response()->json(['message' => 'The Idempotency-Key was already used with a different request.'], 409);
-                }
+            if (!hash_equals($existing->request_hash, $hash)) {
+                return response()->json(['message' => 'The Idempotency-Key was already used with a different request.'], 409);
+            }
 
-                if ($existing->response_body !== null) {
-                    return response()->json($existing->response_body, $existing->status_code ?? 200);
-                }
-            } else {
-                $existing = IdempotencyKey::create([
-                    'key' => $key,
-                    'scope' => $scope,
-                    'user_id' => $request->user()?->id,
-                    'request_hash' => $hash,
-                    'expires_at' => now()->addHours(24),
-                ]);
+            if ($existing->response_body !== null) {
+                return response()->json($existing->response_body, $existing->status_code ?? 200);
             }
 
             $response = $next($request);
