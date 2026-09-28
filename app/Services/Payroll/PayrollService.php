@@ -476,6 +476,10 @@ class PayrollService
                 throw new PayrollException('Zero-value payroll payments are not allowed.');
             }
 
+            if (Decimal::compare($cash->balance, $amount) < 0) {
+                throw new PayrollException('Insufficient cash/bank balance for payroll payment.');
+            }
+
             $payment = PayrollPayment::create([
                 'transaction_uuid' => $transactionUuid,
                 'station_id' => $run->station_id,
@@ -486,6 +490,9 @@ class PayrollService
                 'method' => $method,
                 'status' => 'posted',
             ]);
+
+            $cash->balance = Decimal::sub((string) $cash->balance, $amount);
+            $cash->save();
 
             $entry = $this->journalEntryService->createAndPost(
                 $run->station_id,
@@ -561,11 +568,14 @@ class PayrollService
                 ->firstOrFail();
             $this->assertPostableAccount($link->payableAccount()->firstOrFail(), $run->station_id, 'Employee payable account');
 
-            $cash = $payment->cashAccount()->with('glAccount')->firstOrFail();
+            $cash = $payment->cashAccount()->with('glAccount')->lockForUpdate()->firstOrFail();
             if ($cash->station_id !== $run->station_id) {
                 throw new PayrollException('Payment cash account does not belong to the payroll station.');
             }
             $this->assertPostableAccount($cash->glAccount, $run->station_id, 'Cash/bank GL account');
+
+            $cash->balance = Decimal::add((string) $cash->balance, (string) $payment->amount);
+            $cash->save();
 
             $entry = $this->journalEntryService->createAndPost(
                 $run->station_id,
