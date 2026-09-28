@@ -25,7 +25,19 @@ class CollectionController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $payment = $service->collect(...$data);
+        $payment = $service->collect(
+            stationId: $data['station_id'],
+            collectorId: $data['collector_id'],
+            customerId: $data['customer_id'],
+            invoiceId: $data['invoice_id'] ?? null,
+            cashAccountId: $data['cash_account_id'],
+            transactionUuid: $data['transaction_uuid'],
+            receiptNumber: $data['receipt_number'],
+            paidAt: $data['paid_at'],
+            amount: $data['amount'],
+            method: $data['method'],
+            notes: $data['notes'] ?? null,
+        );
 
         return response()->json(['data' => $payment], 201);
     }
