@@ -194,6 +194,13 @@ class PayrollService
                 'amount' => $normalized,
             ]);
 
+            $slip->lines()->create([
+                'salary_component_id' => null,
+                'description' => 'Advance repayment',
+                'line_type' => 'deduction',
+                'amount' => $normalized,
+            ]);
+
             $newBalance = Decimal::sub($advance->balance, $normalized);
             $advance->update([
                 'balance' => $newBalance,
@@ -396,9 +403,12 @@ class PayrollService
                 throw new PayrollException('Payroll slip must be approved and posted before payment.');
             }
 
-            $alreadyPaid = PayrollPayment::query()->where('payroll_slip_id', $slip->id)->first();
+            $alreadyPaid = PayrollPayment::query()
+                ->where('payroll_slip_id', $slip->id)
+                ->where('status', 'posted')
+                ->first();
             if ($alreadyPaid) {
-                throw new PayrollException('Payroll slip already has a payment.');
+                throw new PayrollException('Payroll slip already has a posted payment.');
             }
 
             $cash = CashAccount::query()->with('glAccount')->lockForUpdate()->findOrFail($cashAccountId);
