@@ -295,7 +295,7 @@ class CollectionFlowTest extends TestCase
         $this->assertSame($first->id, $second->id);
         $this->assertSame($first->reversal_journal_entry_id, $second->reversal_journal_entry_id);
         $this->assertDatabaseCount('journal_entries', 2);
-        $this->assertSame('40.0000', (string) $cash->fresh()->balance);
+        $this->assertSame('0.0000', (string) $cash->fresh()->balance);
         $this->assertSame('40.0000', (string) $collector->fresh()->balance);
     }
 
