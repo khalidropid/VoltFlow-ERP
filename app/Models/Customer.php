@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\HasStation;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Customer extends Model
@@ -25,17 +26,17 @@ class Customer extends Model
         return ['opening_balance' => 'decimal:4'];
     }
 
-    public function meters()
+    public function meters(): HasMany
     {
         return $this->hasMany(Meter::class);
     }
 
-    public function invoices()
+    public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
     }
 
-    public function payments()
+    public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
     }
@@ -43,5 +44,10 @@ class Customer extends Model
     public function accountLink(): HasOne
     {
         return $this->hasOne(CustomerAccountLink::class);
+    }
+
+    public function connections(): HasMany
+    {
+        return $this->hasMany(CustomerConnection::class);
     }
 }
