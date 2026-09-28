@@ -246,7 +246,7 @@ class CollectionFlowTest extends TestCase
 
         $this->assertSame('voided', $voided->status);
         $this->assertNotNull($voided->reversal_journal_entry_id);
-        $this->assertSame('40.0000', (string) $cash->fresh()->balance);
+        $this->assertSame('0.0000', (string) $cash->fresh()->balance);
         $this->assertSame('40.0000', (string) $collector->fresh()->balance);
         $this->assertDatabaseCount('journal_entries', 2);
 
