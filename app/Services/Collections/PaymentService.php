@@ -17,6 +17,26 @@ class PaymentService
         string $paidAt, string $amount, string $method = 'cash', ?string $notes = null
     ): Payment {
         return DB::transaction(function () use ($stationId, $collectorId, $customerId, $invoiceId, $cashAccountId, $transactionUuid, $receiptNumber, $paidAt, $amount, $method, $notes) {
+            $existing = Payment::query()->where('transaction_uuid', $transactionUuid)->first();
+            if ($existing) {
+                $sameIdentity =
+                    $existing->station_id === $stationId &&
+                    $existing->collector_id === $collectorId &&
+                    $existing->customer_id === $customerId &&
+                    $existing->invoice_id === $invoiceId &&
+                    $existing->cash_account_id === $cashAccountId &&
+                    Decimal::normalize((string) $existing->amount) === Decimal::normalize($amount) &&
+                    $existing->receipt_number === $receiptNumber &&
+                    $existing->paid_at?->format('Y-m-d H:i:s') === date('Y-m-d H:i:s', strtotime($paidAt)) &&
+                    $existing->method === $method;
+
+                if (!$sameIdentity) {
+                    throw new CollectionException('The transaction UUID is already associated with a different payment.');
+                }
+
+                return $existing;
+            }
+
             $collector = CollectorAccount::query()->where('station_id', $stationId)->where('collector_id', $collectorId)
                 ->where('status', 'open')->lockForUpdate()->first();
             if (!$collector) throw new CollectionException('The collector does not have an open collection account.');
