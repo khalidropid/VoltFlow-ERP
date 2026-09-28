@@ -73,4 +73,19 @@ class Station extends Model
     public function assets() { return $this->hasMany(Asset::class); }
     public function maintenancePlans() { return $this->hasMany(MaintenancePlan::class); }
     public function maintenanceWorkOrders() { return $this->hasMany(MaintenanceWorkOrder::class); }
+
+    public function departments() { return $this->hasMany(Department::class); }
+    public function positions() { return $this->hasMany(Position::class); }
+    public function employees() { return $this->hasMany(Employee::class); }
+    public function shifts() { return $this->hasMany(Shift::class); }
+    public function shiftAssignments() { return $this->hasMany(ShiftAssignment::class); }
+    public function attendanceLogs() { return $this->hasMany(AttendanceLog::class); }
+    public function leaveTypes() { return $this->hasMany(LeaveType::class); }
+    public function leaveRequests() { return $this->hasMany(LeaveRequest::class); }
+    public function overtimeRecords() { return $this->hasMany(OvertimeRecord::class); }
+    public function employeeAdvances() { return $this->hasMany(EmployeeAdvance::class); }
+    public function salaryComponents() { return $this->hasMany(SalaryComponent::class); }
+    public function payrollPeriods() { return $this->hasMany(PayrollPeriod::class); }
+    public function payrollRuns() { return $this->hasMany(PayrollRun::class); }
+    public function payrollPayments() { return $this->hasMany(PayrollPayment::class); }
 }
