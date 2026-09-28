@@ -108,10 +108,7 @@ class CollectionApiTest extends TestCase
         ])->assertOk()->json('data.token');
     }
 
-    private function withToken(string $token)
-    {
-        return $this->withHeader('Authorization', 'Bearer '.$token);
-    }
+   
 
     private function collectionPayload(Station $station, User $user, Customer $customer, Invoice $invoice, CashAccount $cash): array
     {
