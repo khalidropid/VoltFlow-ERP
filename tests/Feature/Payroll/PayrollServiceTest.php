@@ -141,7 +141,7 @@ class PayrollServiceTest extends TestCase
         }
         $this->assertSame('100000.0000', $debitTotal);
         $this->assertSame('100000.0000', $creditTotal);
-        $this->assertSame(4, $entry->lines->count());
+        $this->assertSame(3, $entry->lines->count());
         $this->assertSame($employee->id, $entry->lines->first()->employee_id);
         $this->assertSame($slip->id, $entry->source_id);
     }
@@ -184,12 +184,23 @@ class PayrollServiceTest extends TestCase
         $this->assertNotNull($voided->reversal_journal_entry_id);
         $this->assertSame('approved', $slip->fresh()->status);
 
+        $replacement = $service->paySlip(
+            $slip->id,
+            $accounts['cash']->id,
+            '56565656-5656-4565-8565-565656565656',
+            '2026-09-30 20:30:00',
+            'bank'
+        );
+
+        $this->assertSame('100000.0000', $replacement->amount);
+        $this->assertSame('paid', $slip->fresh()->status);
+
         $this->expectException(PayrollException::class);
         $service->paySlip(
             $slip->id,
             $accounts['cash']->id,
             '34343434-3434-4343-8343-343434343434',
-            '2026-09-30 18:30:00',
+            '2026-09-30 21:00:00',
             'bank'
         );
     }
