@@ -17,6 +17,10 @@ class PaymentService
         string $paidAt, string $amount, string $method = 'cash', ?string $notes = null
     ): Payment {
         return DB::transaction(function () use ($stationId, $collectorId, $customerId, $invoiceId, $cashAccountId, $transactionUuid, $receiptNumber, $paidAt, $amount, $method, $notes) {
+            $collector = CollectorAccount::query()->where('station_id', $stationId)->where('collector_id', $collectorId)
+                ->where('status', 'open')->lockForUpdate()->first();
+            if (!$collector) throw new CollectionException('The collector does not have an open collection account.');
+
             $existing = Payment::query()->where('transaction_uuid', $transactionUuid)->first();
             if ($existing) {
                 $sameIdentity =
@@ -40,10 +44,6 @@ class PaymentService
             $cash = CashAccount::query()->whereKey($cashAccountId)->where('station_id', $stationId)
                 ->where('is_active', true)->first();
             if (!$cash) throw new CollectionException('The cash/bank account is not active for this station.');
-
-            $collector = CollectorAccount::query()->where('station_id', $stationId)->where('collector_id', $collectorId)
-                ->where('status', 'open')->lockForUpdate()->first();
-            if (!$collector) throw new CollectionException('The collector does not have an open collection account.');
 
             $amount = Decimal::normalize($amount);
             if (Decimal::compare($amount, '0') <= 0) throw new CollectionException('Payment amount must be greater than zero.');
