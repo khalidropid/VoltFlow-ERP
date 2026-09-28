@@ -88,7 +88,7 @@ return new class extends Migration
             $table->string('connection_status', 30)->default('connected');
             $table->decimal('connection_load_kw', 20, 4)->nullable();
             $table->timestamps();
-            $table->index(['station_id', 'customer_id', 'connection_status']);
+            $table->index(['station_id', 'customer_id', 'connection_status'], 'cust_conn_station_customer_status_idx');
         });
     }
 
