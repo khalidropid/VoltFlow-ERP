@@ -3,7 +3,6 @@
 namespace App\Services\Billing;
 
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use App\Models\MeterReading;
 use App\Models\Tariff;
 use App\Support\Decimal;
@@ -16,51 +15,38 @@ class BillingService
     {
         return DB::transaction(function () use ($stationId, $reading, $invoiceUuid, $invoiceNumber, $invoiceDate, $dueDate) {
             $reading->loadMissing('meter.customer');
-            if ($reading->station_id !== $stationId || $reading->status !== 'validated') {
-                throw new RuntimeException('The reading is not valid for billing.');
-            }
+            if ($reading->station_id !== $stationId || $reading->status !== 'validated') throw new RuntimeException('The reading is not valid for billing.');
+            if (Invoice::query()->where('reading_id', $reading->id)->exists()) throw new RuntimeException('This reading has already been invoiced.');
 
-            if (Invoice::query()->where('reading_id', $reading->id)->exists()) {
-                throw new RuntimeException('This reading has already been invoiced.');
-            }
-
-            $tariff = Tariff::query()
-                ->where('station_id', $stationId)
-                ->where('is_active', true)
+            $tariff = Tariff::query()->where('station_id', $stationId)->where('is_active', true)
                 ->whereDate('effective_from', '<=', $reading->reading_at)
-                ->where(function ($q) use ($reading) {
-                    $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', $reading->reading_at);
-                })
-                ->with(['slabs' => fn ($q) => $q->orderBy('sort_order')])
-                ->first();
+                ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', $reading->reading_at))
+                ->with(['slabs' => fn ($q) => $q->orderBy('sort_order')])->first();
 
             if (!$tariff || $tariff->slabs->isEmpty()) throw new RuntimeException('No active tariff is available for this reading date.');
 
-            $remaining = Decimal::normalize($reading->consumption);
+            $remaining = Decimal::normalize((string) $reading->consumption);
             $subtotal = '0.0000';
             $items = [];
 
             foreach ($tariff->slabs as $slab) {
                 if (Decimal::compare($remaining, '0') <= 0) break;
 
-                $slabCapacity = $slab->to_unit === null
-                    ? $remaining
-                    : Decimal::sub((string) $slab->to_unit, (string) $slab->from_unit);
+                $capacity = $slab->to_unit === null ? $remaining : Decimal::sub((string) $slab->to_unit, (string) $slab->from_unit);
+                $quantity = Decimal::compare($remaining, $capacity) < 0 ? $remaining : $capacity;
+                if (Decimal::compare($quantity, '0') <= 0) continue;
 
-                $quantity = Decimal::compare($remaining, $slabCapacity) < 0 ? $remaining : $slabCapacity;
-                $units = (int) floor((float) $quantity);
-                if ($units <= 0) continue;
-
-                $amount = Decimal::multiplyByInteger((string) $slab->rate, $units);
+                $amount = Decimal::multiply((string) $slab->rate, $quantity);
                 $subtotal = Decimal::add($subtotal, $amount);
-                $remaining = Decimal::sub($remaining, Decimal::normalize((string) $units));
+                $remaining = Decimal::sub($remaining, $quantity);
 
-                $items[] = ['quantity' => Decimal::normalize((string) $units), 'unit_rate' => $slab->rate, 'amount' => $amount, 'description' => $tariff->name, 'line_no' => count($items) + 1];
+                $items[] = [
+                    'quantity' => $quantity, 'unit_rate' => $slab->rate, 'amount' => $amount,
+                    'description' => $tariff->name, 'line_no' => count($items) + 1,
+                ];
             }
 
-            if (Decimal::compare($remaining, '0') > 0) {
-                throw new RuntimeException('The tariff slabs do not cover the full consumption.');
-            }
+            if (Decimal::compare($remaining, '0') > 0) throw new RuntimeException('The tariff slabs do not cover the full consumption.');
 
             $invoice = Invoice::create([
                 'transaction_uuid' => $invoiceUuid, 'station_id' => $stationId,
