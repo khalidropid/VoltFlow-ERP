@@ -275,12 +275,21 @@ class Phase5HrPayrollModelTest extends TestCase
             'salary_expense_account_id' => $expenseAccount->id,
         ]);
 
+        $bankAccount = ChartOfAccount::create([
+            'station_id' => $stationA->id,
+            'code' => '1110',
+            'name' => 'Bank - Payroll',
+            'type' => 'asset',
+            'is_postable' => true,
+            'is_active' => true,
+        ]);
+
         $cashAccount = CashAccount::create([
             'station_id' => $stationA->id,
             'code' => 'BANK-001',
             'name' => 'Payroll Bank',
             'type' => 'bank',
-            'account_id' => $payableAccount->id,
+            'account_id' => $bankAccount->id,
             'balance' => '1000000.0000',
             'is_active' => true,
         ]);
