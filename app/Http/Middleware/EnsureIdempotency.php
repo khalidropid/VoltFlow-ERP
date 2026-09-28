@@ -5,8 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\IdempotencyKey;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Illuminate\Support\Facades\DB;
 
 class EnsureIdempotency
 {
@@ -21,37 +20,42 @@ class EnsureIdempotency
         $scope = $request->method() . ':' . $request->path();
         $hash = hash('sha256', $request->getContent());
 
-        $existing = IdempotencyKey::query()->where('key', $key)->where('scope', $scope)->first();
+        return DB::transaction(function () use ($request, $next, $key, $scope, $hash) {
+            $existing = IdempotencyKey::query()
+                ->where('key', $key)
+                ->where('scope', $scope)
+                ->lockForUpdate()
+                ->first();
 
-        if ($existing) {
-            if (!hash_equals($existing->request_hash, $hash)) {
-                return response()->json(['message' => 'The Idempotency-Key was already used with a different request.'], 409);
+            if ($existing) {
+                if (!hash_equals($existing->request_hash, $hash)) {
+                    return response()->json(['message' => 'The Idempotency-Key was already used with a different request.'], 409);
+                }
+
+                if ($existing->response_body !== null) {
+                    return response()->json($existing->response_body, $existing->status_code ?? 200);
+                }
+            } else {
+                $existing = IdempotencyKey::create([
+                    'key' => $key,
+                    'scope' => $scope,
+                    'user_id' => $request->user()?->id,
+                    'request_hash' => $hash,
+                    'expires_at' => now()->addHours(24),
+                ]);
             }
 
-            if ($existing->response_body !== null) {
-                return response()->json($existing->response_body, $existing->status_code ?? 200);
+            $response = $next($request);
+
+            if ($response->getStatusCode() < 500) {
+                $body = json_decode($response->getContent(), true);
+                $existing->update([
+                    'status_code' => $response->getStatusCode(),
+                    'response_body' => is_array($body) ? $body : ['raw' => $response->getContent()],
+                ]);
             }
-        } else {
-            IdempotencyKey::create([
-                'key' => $key,
-                'scope' => $scope,
-                'user_id' => $request->user()?->id,
-                'request_hash' => $hash,
-                'expires_at' => now()->addHours(24),
-            ]);
-        }
 
-        $response = $next($request);
-
-        $record = IdempotencyKey::query()->where('key', $key)->where('scope', $scope)->first();
-        if ($record && $response->getStatusCode() < 500) {
-            $body = json_decode($response->getContent(), true);
-            $record->update([
-                'status_code' => $response->getStatusCode(),
-                'response_body' => is_array($body) ? $body : ['raw' => $response->getContent()],
-            ]);
-        }
-
-        return $response;
+            return $response;
+        }, 3);
     }
 }
