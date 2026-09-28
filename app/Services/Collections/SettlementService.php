@@ -15,6 +15,22 @@ class SettlementService
         string $number, string $settledAt, string $amount, ?int $createdBy = null, ?string $notes = null
     ): CollectionSettlement {
         return DB::transaction(function () use ($stationId, $collectorId, $cashAccountId, $transactionUuid, $number, $settledAt, $amount, $createdBy, $notes) {
+            $existing = CollectionSettlement::query()->where('transaction_uuid', $transactionUuid)->first();
+            if ($existing) {
+                if (
+                    $existing->station_id !== $stationId ||
+                    $existing->collector_account_id !== $collectorId ||
+                    $existing->cash_account_id !== $cashAccountId ||
+                    $existing->number !== $number ||
+                    $existing->settled_at?->format('Y-m-d H:i:s') !== date('Y-m-d H:i:s', strtotime($settledAt)) ||
+                    Decimal::normalize((string) $existing->amount) !== Decimal::normalize($amount)
+                ) {
+                    throw new CollectionException('The transaction UUID is already associated with a different settlement.');
+                }
+
+                return $existing;
+            }
+
             $collector = CollectorAccount::query()
                 ->where('station_id', $stationId)
                 ->where('collector_id', $collectorId)
@@ -23,7 +39,6 @@ class SettlementService
                 ->firstOrFail();
 
             $existing = CollectionSettlement::query()->where('transaction_uuid', $transactionUuid)->first();
-
             if ($existing) {
                 if (
                     $existing->station_id !== $stationId ||
