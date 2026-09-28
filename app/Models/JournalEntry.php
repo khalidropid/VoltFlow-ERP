@@ -64,7 +64,7 @@ class JournalEntry extends Model
         return $this->hasMany(self::class, 'reversal_of_journal_entry_id');
     }
 
-    public function payment(): HasMany
+    public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
     }
