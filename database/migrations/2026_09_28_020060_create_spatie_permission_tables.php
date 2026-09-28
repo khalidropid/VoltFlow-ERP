@@ -39,7 +39,7 @@ return new class extends Migration {
             }
         });
 
-        Schema::create($tableNames['model_has_permissions'], function (Blueprint $table) use ($columnNames, $teams) {
+        Schema::create($tableNames['model_has_permissions'], function (Blueprint $table) use ($columnNames, $teams, $tableNames) {
             $table->unsignedBigInteger('permission_id');
             $table->string('model_type');
             $table->unsignedBigInteger($columnNames['model_morph_key']);
@@ -54,7 +54,7 @@ return new class extends Migration {
             }
         });
 
-        Schema::create($tableNames['model_has_roles'], function (Blueprint $table) use ($columnNames, $teams) {
+        Schema::create($tableNames['model_has_roles'], function (Blueprint $table) use ($columnNames, $teams, $tableNames) {
             $table->unsignedBigInteger('role_id');
             $table->string('model_type');
             $table->unsignedBigInteger($columnNames['model_morph_key']);
@@ -69,18 +69,23 @@ return new class extends Migration {
             }
         });
 
-        Schema::create($tableNames['role_has_permissions'], function (Blueprint $table) {
+        Schema::create($tableNames['role_has_permissions'], function (Blueprint $table) use ($tableNames) {
             $table->unsignedBigInteger('permission_id');
             $table->unsignedBigInteger('role_id');
             $table->primary(['permission_id', 'role_id']);
-            $table->foreign('permission_id')->references('id')->on('permissions')->onDelete('cascade');
-            $table->foreign('role_id')->references('id')->on('roles')->onDelete('cascade');
+            $table->foreign('permission_id')->references('id')->on($tableNames['permissions'])->onDelete('cascade');
+            $table->foreign('role_id')->references('id')->on($tableNames['roles'])->onDelete('cascade');
         });
     }
 
     public function down(): void
     {
         $t = config('permission.table_names');
+
+        if (!$t) {
+            return;
+        }
+
         Schema::dropIfExists($t['role_has_permissions']);
         Schema::dropIfExists($t['model_has_roles']);
         Schema::dropIfExists($t['model_has_permissions']);
