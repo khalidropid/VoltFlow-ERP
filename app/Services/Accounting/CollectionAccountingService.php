@@ -9,7 +9,6 @@ use App\Models\FiscalPeriod;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\CollectorAccount;
-use App\Services\Accounting\JournalEntryService;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -20,7 +19,6 @@ class CollectionAccountingService
         return DB::transaction(function () use ($invoice, $actorId) {
             $invoice->refresh();
             if ($invoice->journal_entry_id) return $invoice;
-
             $ar = $this->account($invoice->station_id, '1200');
             $revenue = $this->account($invoice->station_id, '4100');
             $period = $this->period($invoice->station_id, $invoice->invoice_date->format('Y-m-d'));
@@ -32,8 +30,7 @@ class CollectionAccountingService
                     ['account_id' => $ar->id, 'debit' => (string) $invoice->total, 'credit' => '0'],
                     ['account_id' => $revenue->id, 'debit' => '0', 'credit' => (string) $invoice->total],
                 ],
-                $actorId ? \App\Models\User::find($actorId) : null,
-                'invoice', $invoice->id
+                $actorId ? \App\Models\User::find($actorId) : null, 'invoice', $invoice->id
             );
 
             $invoice->journal_entry_id = $entry->id;
@@ -48,12 +45,8 @@ class CollectionAccountingService
             $payment->refresh();
             if ($payment->journal_entry_id) return $payment;
 
-            $collector = CollectorAccount::query()->whereKey($payment->collector_id)
-                ->where('station_id', $payment->station_id)->first();
-
             $collectorAccount = CollectorAccount::query()->where('station_id', $payment->station_id)
                 ->where('collector_id', $payment->collector_id)->firstOrFail();
-
             if (!$collectorAccount->account_id) throw new RuntimeException('Collector GL account is not configured.');
 
             $ar = $this->account($payment->station_id, '1200');
@@ -66,8 +59,7 @@ class CollectionAccountingService
                     ['account_id' => $collectorAccount->account_id, 'debit' => (string) $payment->amount, 'credit' => '0'],
                     ['account_id' => $ar->id, 'debit' => '0', 'credit' => (string) $payment->amount],
                 ],
-                $actorId ? \App\Models\User::find($actorId) : null,
-                'payment', $payment->id
+                $actorId ? \App\Models\User::find($actorId) : null, 'payment', $payment->id
             );
 
             $payment->journal_entry_id = $entry->id;
@@ -81,11 +73,9 @@ class CollectionAccountingService
         return DB::transaction(function () use ($settlement, $actorId) {
             $collector = CollectorAccount::query()->whereKey($settlement->collector_account_id)->firstOrFail();
             $cash = CashAccount::query()->whereKey($settlement->cash_account_id)->firstOrFail();
-
             if (!$collector->account_id || !$cash->account_id) throw new RuntimeException('Settlement GL accounts are not configured.');
 
             $period = $this->period($settlement->station_id, $settlement->settled_at->format('Y-m-d'));
-
             app(JournalEntryService::class)->createAndPost(
                 $settlement->station_id, $period->id, 'SET-' . $settlement->number,
                 $settlement->settled_at->format('Y-m-d'), 'Collection settlement ' . $settlement->number,
@@ -93,10 +83,8 @@ class CollectionAccountingService
                     ['account_id' => $cash->account_id, 'debit' => (string) $settlement->amount, 'credit' => '0'],
                     ['account_id' => $collector->account_id, 'debit' => '0', 'credit' => (string) $settlement->amount],
                 ],
-                $actorId ? \App\Models\User::find($actorId) : null,
-                'collection_settlement', $settlement->id
+                $actorId ? \App\Models\User::find($actorId) : null, 'collection_settlement', $settlement->id
             );
-
             return $settlement;
         });
     }
