@@ -45,8 +45,16 @@ class JournalEntryService
                     throw new AccountingException('A journal line must contain a debit or credit.');
                 }
                 $entry->lines()->create([
-                    'account_id' => $line['account_id'], 'debit' => $debit, 'credit' => $credit,
-                    'description' => $line['description'] ?? null, 'line_no' => $index + 1,
+                    'account_id' => $line['account_id'],
+                    'debit' => $debit,
+                    'credit' => $credit,
+                    'description' => $line['description'] ?? null,
+                    'line_no' => $index + 1,
+                    'cost_center_id' => $line['cost_center_id'] ?? null,
+                    'customer_id' => $line['customer_id'] ?? null,
+                    'supplier_id' => $line['supplier_id'] ?? null,
+                    'employee_id' => $line['employee_id'] ?? null,
+                    'generator_id' => $line['generator_id'] ?? null,
                 ]);
             }
             return $entry->load('lines');
