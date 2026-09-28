@@ -8,16 +8,15 @@ class CollectionSettlement extends Model
 {
     protected $fillable = [
         'transaction_uuid','station_id','collector_account_id','cash_account_id',
-        'created_by','number','settled_at','amount','status','journal_entry_id','notes'
+        'created_by','number','settled_at','amount','status','journal_entry_id','reversal_journal_entry_id','voided_by','voided_at','void_reason','notes'
     ];
 
     protected function casts(): array
     {
-        return ['settled_at' => 'datetime', 'amount' => 'decimal:4'];
+        return ['settled_at' => 'datetime', 'voided_at' => 'datetime', 'amount' => 'decimal:4'];
     }
 
-    public function journalEntry()
-    {
-        return $this->belongsTo(JournalEntry::class);
-    }
+    public function journalEntry() { return $this->belongsTo(JournalEntry::class); }
+    public function reversalJournalEntry() { return $this->belongsTo(JournalEntry::class, 'reversal_journal_entry_id'); }
+    public function voidedBy() { return $this->belongsTo(User::class, 'voided_by'); }
 }
