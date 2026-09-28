@@ -53,4 +53,24 @@ class Station extends Model
     public function customerConnections() { return $this->hasMany(CustomerConnection::class); }
     public function generationReadings() { return $this->hasMany(GenerationReading::class); }
     public function feederReadings() { return $this->hasMany(FeederReading::class); }
+    public function itemCategories() { return $this->hasMany(ItemCategory::class); }
+    public function items() { return $this->hasMany(Item::class); }
+    public function warehouses() { return $this->hasMany(Warehouse::class); }
+    public function stockMovements() { return $this->hasMany(StockMovement::class); }
+    public function suppliers() { return $this->hasMany(Supplier::class); }
+    public function purchaseRequests() { return $this->hasMany(PurchaseRequest::class); }
+    public function purchaseOrders() { return $this->hasMany(PurchaseOrder::class); }
+    public function goodsReceipts() { return $this->hasMany(GoodsReceipt::class); }
+    public function supplierInvoices() { return $this->hasMany(SupplierInvoice::class); }
+    public function supplierPayments() { return $this->hasMany(SupplierPayment::class); }
+    public function fuelTypes() { return $this->hasMany(FuelType::class); }
+    public function fuelTanks() { return $this->hasMany(FuelTank::class); }
+    public function fuelReceipts() { return $this->hasMany(FuelReceipt::class); }
+    public function fuelIssues() { return $this->hasMany(FuelIssue::class); }
+    public function fuelAdjustments() { return $this->hasMany(FuelAdjustment::class); }
+    public function fuelStockMovements() { return $this->hasMany(FuelStockMovement::class); }
+    public function assetCategories() { return $this->hasMany(AssetCategory::class); }
+    public function assets() { return $this->hasMany(Asset::class); }
+    public function maintenancePlans() { return $this->hasMany(MaintenancePlan::class); }
+    public function maintenanceWorkOrders() { return $this->hasMany(MaintenanceWorkOrder::class); }
 }
