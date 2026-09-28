@@ -3,6 +3,7 @@
 namespace Tests\Feature\Payroll;
 
 use App\Models\CashAccount;
+use App\Support\Decimal;
 use App\Models\ChartOfAccount;
 use App\Models\Employee;
 use App\Models\EmployeeAccountLink;
@@ -132,8 +133,14 @@ class PayrollServiceTest extends TestCase
         $entry = $slip->journalEntry()->with('lines')->first();
         $this->assertNotNull($entry);
         $this->assertSame('posted', $entry->status);
-        $this->assertSame('112000.0000', $entry->lines->sum(fn ($l) => (float) $l->debit));
-        $this->assertSame('112000.0000', $entry->lines->sum(fn ($l) => (float) $l->credit));
+        $debitTotal = '0.0000';
+        $creditTotal = '0.0000';
+        foreach ($entry->lines as $line) {
+            $debitTotal = Decimal::add($debitTotal, $line->debit);
+            $creditTotal = Decimal::add($creditTotal, $line->credit);
+        }
+        $this->assertSame('100000.0000', $debitTotal);
+        $this->assertSame('100000.0000', $creditTotal);
         $this->assertSame(4, $entry->lines->count());
         $this->assertSame($employee->id, $entry->lines->first()->employee_id);
         $this->assertSame($slip->id, $entry->source_id);
