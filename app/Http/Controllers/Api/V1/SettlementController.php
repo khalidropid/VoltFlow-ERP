@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Services\Collections\SettlementReversalService;
 use App\Services\Collections\SettlementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,5 +30,24 @@ class SettlementController extends Controller
         );
 
         return response()->json(['data' => $settlement], 201);
+    }
+
+    public function void(Request $request, int $settlement, SettlementReversalService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'station_id' => ['required', 'integer'],
+            'voided_at' => ['required', 'date'],
+            'reason' => ['required', 'string', 'min:3', 'max:1000'],
+        ]);
+
+        $settlementModel = $service->void(
+            settlementId: $settlement,
+            stationId: $data['station_id'],
+            actorId: $request->user()->id,
+            voidedAt: $data['voided_at'],
+            reason: $data['reason'],
+        );
+
+        return response()->json(['data' => $settlementModel]);
     }
 }
