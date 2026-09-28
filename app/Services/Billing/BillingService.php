@@ -31,7 +31,6 @@ class BillingService
 
             foreach ($tariff->slabs as $slab) {
                 if (Decimal::compare($remaining, '0') <= 0) break;
-
                 $capacity = $slab->to_unit === null ? $remaining : Decimal::sub((string) $slab->to_unit, (string) $slab->from_unit);
                 $quantity = Decimal::compare($remaining, $capacity) < 0 ? $remaining : $capacity;
                 if (Decimal::compare($quantity, '0') <= 0) continue;
@@ -39,11 +38,7 @@ class BillingService
                 $amount = Decimal::multiply((string) $slab->rate, $quantity);
                 $subtotal = Decimal::add($subtotal, $amount);
                 $remaining = Decimal::sub($remaining, $quantity);
-
-                $items[] = [
-                    'quantity' => $quantity, 'unit_rate' => $slab->rate, 'amount' => $amount,
-                    'description' => $tariff->name, 'line_no' => count($items) + 1,
-                ];
+                $items[] = ['quantity' => $quantity, 'unit_rate' => $slab->rate, 'amount' => $amount, 'description' => $tariff->name, 'line_no' => count($items) + 1];
             }
 
             if (Decimal::compare($remaining, '0') > 0) throw new RuntimeException('The tariff slabs do not cover the full consumption.');
@@ -60,7 +55,7 @@ class BillingService
             ]);
 
             foreach ($items as $item) $invoice->items()->create($item);
-            return $invoice->load('items');
+            return app(\App\Services\Accounting\CollectionAccountingService::class)->postInvoice($invoice);
         }, 3);
     }
 }
