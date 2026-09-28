@@ -115,8 +115,8 @@ class StationReportService
         $row = DB::table('warehouse_stocks')
             ->join('warehouses', 'warehouses.id', '=', 'warehouse_stocks.warehouse_id')
             ->where('warehouses.station_id', $stationId)
-            ->selectRaw("COALESCE(SUM(warehouse_stocks.quantity), 0) as quantity")
-            ->selectRaw("COALESCE(SUM(warehouse_stocks.quantity * warehouse_stocks.average_cost), 0) as stock_value")
+            ->selectRaw("COALESCE(ROUND(SUM(warehouse_stocks.quantity), 4), 0) as quantity")
+            ->selectRaw("COALESCE(ROUND(SUM(warehouse_stocks.quantity * warehouse_stocks.average_cost), 4), 0) as stock_value")
             ->first();
 
         return [
