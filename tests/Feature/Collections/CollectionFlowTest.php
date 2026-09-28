@@ -12,6 +12,7 @@ use App\Models\JournalEntry;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\Collections\CollectionException;
+use App\Services\Collections\PaymentReversalService;
 use App\Services\Collections\PaymentService;
 use App\Services\Collections\SettlementService;
 use App\Support\Decimal;
@@ -138,6 +139,91 @@ class CollectionFlowTest extends TestCase
         $credit = array_reduce($entry->lines->all(), fn (string $sum, $line) => Decimal::add($sum, (string) $line->credit), '0.0000');
         $this->assertSame('40.0000', $debit);
         $this->assertSame('40.0000', $credit);
+    }
+
+    public function test_payment_void_reverses_invoice_collector_and_posts_balanced_reversal(): void
+    {
+        [$station, $user, $collector, $cash] = $this->fixture();
+        $customer = Customer::create(['station_id' => $station->id, 'code' => 'C-001', 'name' => 'Customer']);
+        $invoice = Invoice::create([
+            'transaction_uuid' => '11111111-1111-4111-8111-111111111111',
+            'station_id' => $station->id, 'customer_id' => $customer->id, 'number' => 'INV-001',
+            'invoice_date' => '2026-09-28', 'subtotal' => '100.0000', 'discount' => '0',
+            'tax' => '0', 'total' => '100.0000', 'paid_amount' => '0', 'status' => 'issued',
+        ]);
+
+        $payment = app(PaymentService::class)->collect(
+            $station->id, $user->id, $customer->id, $invoice->id, $cash->id,
+            '22222222-2222-4222-8222-222222222222', 'RCPT-001', '2026-09-28 10:00:00', '40.0000'
+        );
+
+        $voided = app(PaymentReversalService::class)->void(
+            $payment->id, $station->id, $user->id, '2026-09-28 13:00:00', 'Duplicate receipt'
+        );
+
+        $this->assertSame('voided', $voided->status);
+        $this->assertNotNull($voided->reversal_journal_entry_id);
+        $this->assertSame('0.0000', (string) $collector->fresh()->balance);
+        $this->assertSame('0.0000', (string) $invoice->fresh()->paid_amount);
+        $this->assertSame('issued', $invoice->fresh()->status);
+        $this->assertDatabaseCount('journal_entries', 2);
+
+        $entry = JournalEntry::with('lines')->findOrFail($voided->reversal_journal_entry_id);
+        $this->assertSame($payment->journal_entry_id, $entry->reversal_of_journal_entry_id);
+        $debit = array_reduce($entry->lines->all(), fn (string $sum, $line) => Decimal::add($sum, (string) $line->debit), '0.0000');
+        $credit = array_reduce($entry->lines->all(), fn (string $sum, $line) => Decimal::add($sum, (string) $line->credit), '0.0000');
+        $this->assertSame('40.0000', $debit);
+        $this->assertSame('40.0000', $credit);
+    }
+
+    public function test_payment_void_is_idempotent_after_first_void(): void
+    {
+        [$station, $user, $collector, $cash] = $this->fixture();
+        $customer = Customer::create(['station_id' => $station->id, 'code' => 'C-001', 'name' => 'Customer']);
+        $invoice = Invoice::create([
+            'transaction_uuid' => '11111111-1111-4111-8111-111111111111',
+            'station_id' => $station->id, 'customer_id' => $customer->id, 'number' => 'INV-001',
+            'invoice_date' => '2026-09-28', 'subtotal' => '100.0000', 'discount' => '0',
+            'tax' => '0', 'total' => '100.0000', 'paid_amount' => '0', 'status' => 'issued',
+        ]);
+
+        $payment = app(PaymentService::class)->collect(
+            $station->id, $user->id, $customer->id, $invoice->id, $cash->id,
+            '22222222-2222-4222-8222-222222222222', 'RCPT-001', '2026-09-28 10:00:00', '40.0000'
+        );
+
+        $first = app(PaymentReversalService::class)->void($payment->id, $station->id, $user->id, '2026-09-28 13:00:00', 'Duplicate receipt');
+        $second = app(PaymentReversalService::class)->void($payment->id, $station->id, $user->id, '2026-09-28 14:00:00', 'Second request');
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame($first->reversal_journal_entry_id, $second->reversal_journal_entry_id);
+        $this->assertDatabaseCount('journal_entries', 2);
+        $this->assertSame('0.0000', (string) $collector->fresh()->balance);
+    }
+
+    public function test_payment_void_is_rejected_after_collector_settlement(): void
+    {
+        [$station, $user, $collector, $cash] = $this->fixture();
+        $customer = Customer::create(['station_id' => $station->id, 'code' => 'C-001', 'name' => 'Customer']);
+        $invoice = Invoice::create([
+            'transaction_uuid' => '11111111-1111-4111-8111-111111111111',
+            'station_id' => $station->id, 'customer_id' => $customer->id, 'number' => 'INV-001',
+            'invoice_date' => '2026-09-28', 'subtotal' => '100.0000', 'discount' => '0',
+            'tax' => '0', 'total' => '100.0000', 'paid_amount' => '0', 'status' => 'issued',
+        ]);
+
+        $payment = app(PaymentService::class)->collect(
+            $station->id, $user->id, $customer->id, $invoice->id, $cash->id,
+            '22222222-2222-4222-8222-222222222222', 'RCPT-001', '2026-09-28 10:00:00', '40.0000'
+        );
+
+        app(SettlementService::class)->settle(
+            $station->id, $user->id, $cash->id, '33333333-3333-4333-8333-333333333333',
+            'SET-001', '2026-09-28 12:00:00', '40.0000', $user->id
+        );
+
+        $this->expectException(CollectionException::class);
+        app(PaymentReversalService::class)->void($payment->id, $station->id, $user->id, '2026-09-28 13:00:00', 'Attempt after settlement');
     }
 
     public function test_duplicate_settlement_uuid_is_idempotent(): void
