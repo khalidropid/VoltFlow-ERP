@@ -14,7 +14,6 @@ return new class extends Migration {
                 ->constrained('journal_entries')
                 ->nullOnDelete();
 
-            $table->index(['source_type', 'source_id']);
         });
     }
 
