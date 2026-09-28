@@ -9,12 +9,12 @@ use App\Models\Customer;
 use App\Models\FiscalPeriod;
 use App\Models\Invoice;
 use App\Models\JournalEntry;
-use App\Models\CollectionSettlement;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\Collections\CollectionException;
 use App\Services\Collections\PaymentService;
 use App\Services\Collections\SettlementService;
+use App\Support\Decimal;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -47,8 +47,10 @@ class CollectionFlowTest extends TestCase
         $this->assertSame('partially_paid', $invoice->fresh()->status);
 
         $entry = JournalEntry::with('lines')->findOrFail($payment->journal_entry_id);
-        $this->assertSame('40.0000', (string) $entry->lines->sum(fn ($line) => (float) $line->debit));
-        $this->assertSame('40.0000', (string) $entry->lines->sum(fn ($line) => (float) $line->credit));
+        $debit = array_reduce($entry->lines->all(), fn (string $sum, $line) => Decimal::add($sum, (string) $line->debit), '0.0000');
+        $credit = array_reduce($entry->lines->all(), fn (string $sum, $line) => Decimal::add($sum, (string) $line->credit), '0.0000');
+        $this->assertSame('40.0000', $debit);
+        $this->assertSame('40.0000', $credit);
     }
 
     public function test_duplicate_payment_uuid_is_idempotent_and_does_not_double_collect(): void
@@ -104,8 +106,10 @@ class CollectionFlowTest extends TestCase
         $this->assertDatabaseCount('journal_entries', 1);
 
         $entry = JournalEntry::with('lines')->findOrFail($settlement->journal_entry_id);
-        $this->assertSame('40.0000', number_format($entry->lines->sum(fn ($line) => (float) $line->debit), 4, '.', ''));
-        $this->assertSame('40.0000', number_format($entry->lines->sum(fn ($line) => (float) $line->credit), 4, '.', ''));
+        $debit = array_reduce($entry->lines->all(), fn (string $sum, $line) => Decimal::add($sum, (string) $line->debit), '0.0000');
+        $credit = array_reduce($entry->lines->all(), fn (string $sum, $line) => Decimal::add($sum, (string) $line->credit), '0.0000');
+        $this->assertSame('40.0000', $debit);
+        $this->assertSame('40.0000', $credit);
     }
 
     public function test_duplicate_settlement_uuid_is_idempotent(): void
@@ -144,7 +148,7 @@ class CollectionFlowTest extends TestCase
         $user->stations()->attach($station, ['is_default' => true]);
 
         FiscalPeriod::create(['station_id' => $station->id, 'name' => '2026', 'starts_on' => '2026-01-01', 'ends_on' => '2026-12-31', 'status' => 'open']);
-        $ar = ChartOfAccount::create(['station_id' => $station->id, 'code' => '1200', 'name' => 'Accounts Receivable', 'type' => 'asset']);
+        ChartOfAccount::create(['station_id' => $station->id, 'code' => '1200', 'name' => 'Accounts Receivable', 'type' => 'asset']);
         ChartOfAccount::create(['station_id' => $station->id, 'code' => '4100', 'name' => 'Electricity Revenue', 'type' => 'revenue']);
         $collectorGl = ChartOfAccount::create(['station_id' => $station->id, 'code' => '1110', 'name' => 'Collector Cash', 'type' => 'asset']);
         $cashGl = ChartOfAccount::create(['station_id' => $station->id, 'code' => '1100', 'name' => 'Main Cash', 'type' => 'asset']);
