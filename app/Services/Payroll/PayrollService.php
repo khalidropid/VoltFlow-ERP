@@ -336,14 +336,16 @@ class PayrollService
                 $credits = Decimal::add($credits, Decimal::normalize($line->amount));
             }
 
-            $lines[] = [
-                'account_id' => $link->payable_account_id,
-                'debit' => '0.0000',
-                'credit' => $net,
-                'description' => 'Net salary payable',
-                'employee_id' => $employee->id,
-            ];
-            $credits = Decimal::add($credits, $net);
+            if (Decimal::compare($net, '0.0000') > 0) {
+                $lines[] = [
+                    'account_id' => $link->payable_account_id,
+                    'debit' => '0.0000',
+                    'credit' => $net,
+                    'description' => 'Net salary payable',
+                    'employee_id' => $employee->id,
+                ];
+                $credits = Decimal::add($credits, $net);
+            }
 
             if ($credits !== $gross) {
                 throw new PayrollException('Payroll accounting lines are not balanced with gross pay.');
@@ -378,11 +380,13 @@ class PayrollService
         return DB::transaction(function () use ($payrollSlipId, $cashAccountId, $transactionUuid, $paidAt, $method, $actor) {
             $existing = PayrollPayment::query()->where('transaction_uuid', $transactionUuid)->first();
             if ($existing) {
-                if ($existing->payroll_slip_id !== $payrollSlipId) {
-                    throw new PayrollException('Transaction UUID is already used for another payroll payment.');
-                }
-                if (Decimal::compare($existing->amount, PayrollSlip::query()->findOrFail($payrollSlipId)->net_amount) !== 0) {
-                    throw new PayrollException('Transaction UUID is already used with a different payroll amount.');
+                $existingSlip = PayrollSlip::query()->findOrFail($payrollSlipId);
+                if ($existing->payroll_slip_id !== $payrollSlipId ||
+                    $existing->cash_account_id !== $cashAccountId ||
+                    Decimal::compare($existing->amount, $existingSlip->net_amount) !== 0 ||
+                    $existing->method !== $method ||
+                    $existing->paid_at->format('Y-m-d H:i:s') !== date('Y-m-d H:i:s', strtotime($paidAt))) {
+                    throw new PayrollException('Transaction UUID is already used for a different payroll payment.');
                 }
                 return $existing->load(['payrollSlip', 'cashAccount', 'journalEntry']);
             }
@@ -505,7 +509,13 @@ class PayrollService
                 ->where('station_id', $run->station_id)
                 ->where('employee_id', $slip->employee_id)
                 ->firstOrFail();
+            $this->assertPostableAccount($link->payableAccount()->firstOrFail(), $run->station_id, 'Employee payable account');
+
             $cash = $payment->cashAccount()->with('glAccount')->firstOrFail();
+            if ($cash->station_id !== $run->station_id) {
+                throw new PayrollException('Payment cash account does not belong to the payroll station.');
+            }
+            $this->assertPostableAccount($cash->glAccount, $run->station_id, 'Cash/bank GL account');
 
             $entry = $this->journalEntryService->createAndPost(
                 $run->station_id,
