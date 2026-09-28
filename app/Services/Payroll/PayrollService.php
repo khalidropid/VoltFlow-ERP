@@ -2,6 +2,7 @@
 
 namespace App\Services\Payroll;
 
+use App\Models\AdvanceRepayment;
 use App\Models\CashAccount;
 use App\Models\Employee;
 use App\Models\EmployeeAccountLink;
