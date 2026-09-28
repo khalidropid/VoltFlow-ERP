@@ -89,7 +89,7 @@ class PayrollServiceTest extends TestCase
         $this->assertSame('112000.0000', $slip->gross_amount);
         $this->assertSame('5000.0000', $slip->deduction_amount);
         $this->assertSame('107000.0000', $slip->net_amount);
-        $this->assertSame(3, $slip->lines->count());
+        $this->assertSame(4, $slip->lines->count());
 
         $slip = $service->addAdvanceRepayment(
             $slip->id,
@@ -102,6 +102,9 @@ class PayrollServiceTest extends TestCase
         $this->assertSame('12000.0000', $slip->deduction_amount);
         $this->assertSame('100000.0000', $slip->net_amount);
         $this->assertSame('13000.0000', $advance->fresh()->balance);
+        $this->assertSame(5, $slip->lines->count());
+        $this->assertSame('deduction', $slip->lines->last()->line_type);
+        $this->assertSame('7000.0000', $slip->lines->last()->amount);
 
         $slip = $service->approveSlip($slip->id);
 
