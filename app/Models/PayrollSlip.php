@@ -10,13 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class PayrollSlip extends Model
 {
     protected $fillable = [
-        'payroll_run_id',
-        'employee_id',
-        'slip_number',
-        'gross_amount',
-        'deduction_amount',
-        'net_amount',
-        'status',
+        'payroll_run_id', 'employee_id', 'slip_number', 'gross_amount',
+        'deduction_amount', 'net_amount', 'status', 'journal_entry_id',
     ];
 
     protected function casts(): array
@@ -28,28 +23,10 @@ class PayrollSlip extends Model
         ];
     }
 
-    public function payrollRun(): BelongsTo
-    {
-        return $this->belongsTo(PayrollRun::class);
-    }
-
-    public function employee(): BelongsTo
-    {
-        return $this->belongsTo(Employee::class);
-    }
-
-    public function lines(): HasMany
-    {
-        return $this->hasMany(PayrollSlipLine::class);
-    }
-
-    public function advanceRepayments(): HasMany
-    {
-        return $this->hasMany(AdvanceRepayment::class);
-    }
-
-    public function payment(): HasOne
-    {
-        return $this->hasOne(PayrollPayment::class);
-    }
+    public function payrollRun(): BelongsTo { return $this->belongsTo(PayrollRun::class); }
+    public function employee(): BelongsTo { return $this->belongsTo(Employee::class); }
+    public function journalEntry(): BelongsTo { return $this->belongsTo(JournalEntry::class); }
+    public function lines(): HasMany { return $this->hasMany(PayrollSlipLine::class); }
+    public function advanceRepayments(): HasMany { return $this->hasMany(AdvanceRepayment::class); }
+    public function payment(): HasOne { return $this->hasOne(PayrollPayment::class); }
 }
