@@ -226,6 +226,79 @@ class CollectionFlowTest extends TestCase
         app(PaymentReversalService::class)->void($payment->id, $station->id, $user->id, '2026-09-28 13:00:00', 'Attempt after settlement');
     }
 
+    public function test_settlement_void_restores_collector_and_reverses_cash(): void
+    {
+        [$station, $user, $collector, $cash] = $this->fixture();
+        $collector->update(['balance' => '40.0000']);
+
+        $settlement = app(SettlementService::class)->settle(
+            $station->id, $user->id, $cash->id,
+            '55555555-5555-4555-8555-555555555555', 'SET-VOID-001',
+            '2026-09-28 12:00:00', '40.0000', $user->id
+        );
+
+        $this->assertSame('40.0000', (string) $cash->fresh()->balance);
+        $this->assertSame('0.0000', (string) $collector->fresh()->balance);
+
+        $voided = app(\App\Services\Collections\SettlementReversalService::class)->void(
+            $settlement->id, $station->id, $user->id, '2026-09-28 13:00:00', 'Duplicate settlement'
+        );
+
+        $this->assertSame('voided', $voided->status);
+        $this->assertNotNull($voided->reversal_journal_entry_id);
+        $this->assertSame('40.0000', (string) $cash->fresh()->balance);
+        $this->assertSame('40.0000', (string) $collector->fresh()->balance);
+        $this->assertDatabaseCount('journal_entries', 2);
+
+        $entry = JournalEntry::with('lines')->findOrFail($voided->reversal_journal_entry_id);
+        $this->assertSame($settlement->journal_entry_id, $entry->reversal_of_journal_entry_id);
+        $debit = array_reduce($entry->lines->all(), fn (string $sum, $line) => Decimal::add($sum, (string) $line->debit), '0.0000');
+        $credit = array_reduce($entry->lines->all(), fn (string $sum, $line) => Decimal::add($sum, (string) $line->credit), '0.0000');
+        $this->assertSame('40.0000', $debit);
+        $this->assertSame('40.0000', $credit);
+    }
+
+    public function test_settlement_void_is_rejected_when_cash_has_been_used(): void
+    {
+        [$station, $user, $collector, $cash] = $this->fixture();
+        $collector->update(['balance' => '40.0000']);
+
+        $settlement = app(SettlementService::class)->settle(
+            $station->id, $user->id, $cash->id,
+            '66666666-6666-4666-8666-666666666666', 'SET-VOID-002',
+            '2026-09-28 12:00:00', '40.0000', $user->id
+        );
+
+        $cash->update(['balance' => '10.0000']);
+
+        $this->expectException(CollectionException::class);
+        app(\App\Services\Collections\SettlementReversalService::class)->void(
+            $settlement->id, $station->id, $user->id, '2026-09-28 13:00:00', 'Cash already used'
+        );
+    }
+
+    public function test_settlement_void_is_idempotent_after_first_void(): void
+    {
+        [$station, $user, $collector, $cash] = $this->fixture();
+        $collector->update(['balance' => '40.0000']);
+
+        $settlement = app(SettlementService::class)->settle(
+            $station->id, $user->id, $cash->id,
+            '77777777-7777-4777-8777-777777777777', 'SET-VOID-003',
+            '2026-09-28 12:00:00', '40.0000', $user->id
+        );
+
+        $service = app(\App\Services\Collections\SettlementReversalService::class);
+        $first = $service->void($settlement->id, $station->id, $user->id, '2026-09-28 13:00:00', 'Duplicate settlement');
+        $second = $service->void($settlement->id, $station->id, $user->id, '2026-09-28 14:00:00', 'Second request');
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame($first->reversal_journal_entry_id, $second->reversal_journal_entry_id);
+        $this->assertDatabaseCount('journal_entries', 2);
+        $this->assertSame('40.0000', (string) $cash->fresh()->balance);
+        $this->assertSame('40.0000', (string) $collector->fresh()->balance);
+    }
+
     public function test_duplicate_settlement_uuid_is_idempotent(): void
     {
         [$station, $user, $collector, $cash] = $this->fixture();
