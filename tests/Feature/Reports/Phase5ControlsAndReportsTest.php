@@ -6,10 +6,12 @@ use App\Models\CashAccount;
 use App\Models\Employee;
 use App\Models\EmployeeContract;
 use App\Models\Invoice;
+use App\Models\Customer;
 use App\Models\Payment;
 use App\Models\Station;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
+use App\Models\UnitOfMeasure;
 use App\Models\Item;
 use Database\Seeders\AccessControlSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -56,10 +58,32 @@ class Phase5ControlsAndReportsTest extends TestCase
             'currency_code' => 'YER',
         ]);
 
+        $customerA = Customer::create([
+            'station_id' => $stationA->id,
+            'code' => 'RPC-001',
+            'name' => 'Report Customer A',
+            'status' => 'active',
+            'opening_balance' => '0.0000',
+        ]);
+
+        $customerB = Customer::create([
+            'station_id' => $stationB->id,
+            'code' => 'RPC-001',
+            'name' => 'Report Customer B',
+            'status' => 'active',
+            'opening_balance' => '0.0000',
+        ]);
+
+        $unit = UnitOfMeasure::create([
+            'code' => 'PCS',
+            'name' => 'Piece',
+            'symbol' => 'pc',
+        ]);
+
         Invoice::create([
             'transaction_uuid' => '10101010-1010-4101-8101-101010101010',
             'station_id' => $stationA->id,
-            'customer_id' => 1,
+            'customer_id' => $customerA->id,
             'number' => 'RPA-INV-001',
             'invoice_date' => '2026-09-29',
             'total' => '1200.1250',
@@ -70,7 +94,7 @@ class Phase5ControlsAndReportsTest extends TestCase
         Invoice::create([
             'transaction_uuid' => '20202020-2020-4202-8202-202020202020',
             'station_id' => $stationB->id,
-            'customer_id' => 1,
+            'customer_id' => $customerB->id,
             'number' => 'RPB-INV-001',
             'invoice_date' => '2026-09-29',
             'total' => '9000.0000',
@@ -97,6 +121,7 @@ class Phase5ControlsAndReportsTest extends TestCase
             'station_id' => $stationA->id,
             'code' => 'REPORT-ITEM',
             'name' => 'Report Item',
+            'unit_of_measure_id' => $unit->id,
             'item_type' => 'stock',
             'standard_cost' => '10.0000',
             'reorder_level' => '2.0000',
@@ -118,7 +143,6 @@ class Phase5ControlsAndReportsTest extends TestCase
             'average_cost' => '10.1250',
         ]);
 
-        $employee->delete();
 
         $service = app(\App\Services\Reports\StationReportService::class);
         $reportA = $service->operationalSnapshot($stationA->id, '2026-09-01', '2026-09-30');
