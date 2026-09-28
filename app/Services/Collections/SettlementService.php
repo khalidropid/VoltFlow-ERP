@@ -56,6 +56,9 @@ class SettlementService
             $collector->balance = Decimal::sub((string) $collector->balance, $amount);
             $collector->save();
 
+            $cash->balance = Decimal::add((string) $cash->balance, $amount);
+            $cash->save();
+
             $settlement = CollectionSettlement::create([
                 'transaction_uuid' => $transactionUuid,
                 'station_id' => $stationId,
