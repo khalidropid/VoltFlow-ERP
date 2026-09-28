@@ -39,11 +39,13 @@ class StationReportService
         $billed = Decimal::normalize((string) ($row->billed_total ?? '0'));
         $paid = Decimal::normalize((string) ($row->paid_total ?? '0'));
 
+        $paidAgainstBilled = Decimal::compare($paid, $billed) > 0 ? $billed : $paid;
+
         return [
             'invoice_count' => (int) $row->invoice_count,
             'billed_total' => $billed,
             'paid_total' => $paid,
-            'outstanding_total' => Decimal::sub($billed, min($paid, $billed)),
+            'outstanding_total' => Decimal::sub($billed, $paidAgainstBilled),
         ];
     }
 
