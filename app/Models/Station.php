@@ -49,4 +49,8 @@ class Station extends Model
     public function supplierAccountLinks() { return $this->hasMany(SupplierAccountLink::class); }
     public function employeeAccountLinks() { return $this->hasMany(EmployeeAccountLink::class); }
     public function generators() { return $this->hasMany(Generator::class); }
+    public function feeders() { return $this->hasMany(Feeder::class); }
+    public function customerConnections() { return $this->hasMany(CustomerConnection::class); }
+    public function generationReadings() { return $this->hasMany(GenerationReading::class); }
+    public function feederReadings() { return $this->hasMany(FeederReading::class); }
 }
