@@ -12,6 +12,7 @@ class PayrollSlipLine extends Model
         'salary_component_id',
         'description',
         'line_type',
+        'source_type',
         'amount',
     ];
 
