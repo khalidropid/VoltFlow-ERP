@@ -229,7 +229,7 @@ return new class extends Migration {
             $table->foreignId('supplier_invoice_id')->constrained()->restrictOnDelete();
             $table->decimal('amount', 20, 4);
             $table->timestamps();
-            $table->unique(['supplier_payment_id', 'supplier_invoice_id']);
+            $table->unique(['supplier_payment_id', 'supplier_invoice_id'], 'supp_pay_alloc_unique');
         });
     }
 
