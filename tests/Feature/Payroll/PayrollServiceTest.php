@@ -205,12 +205,20 @@ class PayrollServiceTest extends TestCase
         $this->assertSame($payment->id, $replay->id);
         $this->assertSame('paid', $slip->fresh()->status);
         $this->assertSame('100000.0000', $payment->amount);
+        $this->assertSame('400000.0000', $accounts['cash']->fresh()->balance);
+        $this->assertDatabaseHas('audit_logs', [
+            'event' => 'payroll_payment.posted',
+            'auditable_type' => 'App\\Models\\PayrollPayment',
+            'auditable_id' => $payment->id,
+            'station_id' => $station->id,
+        ]);
 
         $voided = $service->voidPayment($payment->id, '2026-09-30 20:00:00');
 
         $this->assertSame('voided', $voided->status);
         $this->assertNotNull($voided->reversal_journal_entry_id);
         $this->assertSame('approved', $slip->fresh()->status);
+        $this->assertSame('500000.0000', $accounts['cash']->fresh()->balance);
         $this->assertDatabaseHas('audit_logs', [
             'event' => 'payroll_payment.voided',
             'auditable_type' => 'App\\Models\\PayrollPayment',
@@ -227,6 +235,7 @@ class PayrollServiceTest extends TestCase
         );
 
         $this->assertSame('100000.0000', $replacement->amount);
+        $this->assertSame('400000.0000', $accounts['cash']->fresh()->balance);
         $this->assertSame('paid', $slip->fresh()->status);
 
         $this->expectException(PayrollException::class);
