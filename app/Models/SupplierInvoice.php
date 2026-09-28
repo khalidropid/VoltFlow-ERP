@@ -6,6 +6,7 @@ use App\Models\Concerns\HasStation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class SupplierInvoice extends Model
 {
@@ -43,8 +44,15 @@ class SupplierInvoice extends Model
         return $this->hasMany(SupplierInvoiceItem::class);
     }
 
-    public function payments(): HasMany
+    public function payments(): HasManyThrough
     {
-        return $this->hasMany(SupplierPayment::class, 'supplier_id', 'supplier_id');
+        return $this->hasManyThrough(
+            SupplierPayment::class,
+            SupplierPaymentAllocation::class,
+            'supplier_invoice_id',
+            'id',
+            'id',
+            'supplier_payment_id'
+        );
     }
 }
