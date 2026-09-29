@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\IntegrationBatchResource\Pages;
 use App\Models\IntegrationBatch;
+use App\Models\User;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -18,7 +19,7 @@ class IntegrationBatchResource extends Resource
     public static function getModelLabel(): string { return 'دفعة تكامل'; }
     public static function getPluralModelLabel(): string { return 'دفعات التكامل'; }
 
-    public static function canViewAny(): bool { return auth()->user()?->can('integration.view') ?? false; }
+    public static function canViewAny(): bool { return self::currentUser()?->can('integration.view') ?? false; }
     public static function canCreate(): bool { return false; }
     public static function canEdit($record): bool { return false; }
     public static function canDelete($record): bool { return false; }
@@ -35,6 +36,13 @@ class IntegrationBatchResource extends Resource
             Tables\Columns\TextColumn::make('processed_count')->label('المعالجة'),
             Tables\Columns\TextColumn::make('failed_count')->label('الفاشلة'),
         ])->defaultSort('started_at', 'desc');
+    }
+
+    private static function currentUser(): ?User
+    {
+        $user = request()->user();
+
+        return $user instanceof User ? $user : null;
     }
 
     public static function getPages(): array
