@@ -242,6 +242,13 @@ class SupplierInvoiceService
             throw new ProcurementException('Supplier invoice lines do not match the goods receipt.');
         }
 
+        $invoiceItemIds = $invoiceItems->pluck('item_id')->sort()->values()->all();
+        $receiptItemIds = $receiptItems->pluck('item_id')->sort()->values()->all();
+
+        if ($invoiceItemIds !== $receiptItemIds) {
+            throw new ProcurementException('Supplier invoice items do not match the goods receipt items.');
+        }
+
         $receiptByItem = $receiptItems->keyBy('item_id');
 
         foreach ($invoiceItems as $line) {
