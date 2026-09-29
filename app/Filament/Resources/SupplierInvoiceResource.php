@@ -51,12 +51,15 @@ class SupplierInvoiceResource extends Resource
                 ->searchable()->native(false),
             Forms\Components\DatePicker::make('invoice_date')->label('تاريخ الفاتورة')->required()->default(now()),
             Forms\Components\DatePicker::make('due_date')->label('تاريخ الاستحقاق'),
-            Forms\Components\TextInput::make('subtotal')->label('الإجمالي قبل الضريبة')->numeric()->required()->default(0),
+            Forms\Components\TextInput::make('subtotal')->label('الإجمالي قبل الضريبة')->numeric()->required()->default(0)->live(onBlur: true)
+                ->afterStateUpdated(function (Get $get, Set $set): void {
+                    $set('total', Decimal::add((string) $get('subtotal'), (string) $get('tax')));
+                }),
             Forms\Components\TextInput::make('tax')->label('الضريبة')->numeric()->required()->default(0)->live(onBlur: true)
                 ->afterStateUpdated(function (Get $get, Set $set): void {
                     $set('total', Decimal::add((string) $get('subtotal'), (string) $get('tax')));
                 }),
-            Forms\Components\TextInput::make('total')->label('الإجمالي')->numeric()->required()->default(0),
+            Forms\Components\TextInput::make('total')->label('الإجمالي')->numeric()->required()->default(0)->disabled()->dehydrated(),
             Forms\Components\Repeater::make('items')->label('بنود الفاتورة')->relationship()
                 ->schema([
                     Forms\Components\Select::make('item_id')->label('الصنف')
