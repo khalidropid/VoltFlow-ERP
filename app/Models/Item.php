@@ -13,7 +13,8 @@ class Item extends Model
 
     protected $fillable = [
         'station_id', 'item_category_id', 'unit_of_measure_id', 'code', 'name',
-        'item_type', 'standard_cost', 'reorder_level', 'is_active',
+        'item_type', 'standard_cost', 'reorder_level',
+        'inventory_account_id', 'cogs_account_id', 'expense_account_id', 'is_active',
     ];
 
     protected function casts(): array
