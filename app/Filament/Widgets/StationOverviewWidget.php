@@ -23,7 +23,9 @@ class StationOverviewWidget extends BaseWidget
             ];
         }
 
-        $end = CarbonImmutable::today();
+        $station = app(StationContext::class)->current();
+        $timezone = $station?->timezone ?: config('app.timezone');
+        $end = CarbonImmutable::now($timezone)->startOfDay();
         $start = $end->startOfMonth();
 
         $snapshot = app(StationReportService::class)->operationalSnapshot(
