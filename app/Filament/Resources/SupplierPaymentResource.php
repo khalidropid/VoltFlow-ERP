@@ -14,6 +14,8 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Infolists\Infolist;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -66,6 +68,24 @@ class SupplierPaymentResource extends Resource
                     Forms\Components\TextInput::make('amount')->label('المبلغ')->numeric()->required()->minValue(0.0001),
                 ])->columns(2)->minItems(1),
         ]);
+    }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist->schema([
+            TextEntry::make('receipt_number')->label('رقم الإيصال'),
+            TextEntry::make('supplier.name')->label('المورد'),
+            TextEntry::make('cashAccount.name')->label('النقدية / البنك'),
+            TextEntry::make('paid_at')->label('وقت الدفع')->dateTime(),
+            TextEntry::make('amount')->label('المبلغ'),
+            TextEntry::make('method')->label('الطريقة')->formatStateUsing(fn (string $state): string => match ($state) {
+                'cash'=>'نقدًا','bank'=>'بنك','transfer'=>'تحويل','other'=>'أخرى',default=>$state,
+            }),
+            TextEntry::make('status')->label('الحالة')->formatStateUsing(fn (string $state): string => $state === 'posted' ? 'مرحل' : 'ملغى'),
+            TextEntry::make('journal_entry_id')->label('قيد الدفع')->placeholder('غير موجود'),
+            TextEntry::make('reversal_journal_entry_id')->label('قيد العكس')->placeholder('غير موجود'),
+            TextEntry::make('voided_at')->label('وقت الإلغاء')->dateTime()->placeholder('غير ملغى'),
+        ])->columns(2);
     }
 
     public static function table(Table $table): Table
