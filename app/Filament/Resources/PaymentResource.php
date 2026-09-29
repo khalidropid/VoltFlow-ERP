@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\PaymentResource\Pages;
 use App\Models\Payment;
+use App\Models\User;
 use App\Services\Collections\PaymentReversalService;
 use App\Support\StationContext;
 use Filament\Forms;
@@ -74,9 +75,10 @@ class PaymentResource extends Resource
                 Tables\Columns\TextColumn::make('collector.name')->label('المحصل')->searchable(),
                 Tables\Columns\TextColumn::make('amount')->label('المبلغ')->numeric(decimalPlaces: 4)->sortable(),
                 Tables\Columns\TextColumn::make('paid_at')->label('التاريخ')->dateTime('Y-m-d H:i')->sortable(),
-                Tables\Columns\BadgeColumn::make('status')
+                Tables\Columns\TextColumn::make('status')
                     ->label('الحالة')
-                    ->colors(['success' => 'posted', 'danger' => 'voided'])
+                    ->badge()
+                    ->color(fn (string $state): string => $state === 'posted' ? 'success' : 'danger')
                     ->formatStateUsing(fn (string $state): string => $state === 'posted' ? 'مرحل' : 'ملغى'),
             ])
             ->actions([
@@ -86,7 +88,7 @@ class PaymentResource extends Resource
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('danger')
                     ->visible(fn (Payment $record): bool =>
-                        (auth()->user()?->can('collections.void') ?? false) && $record->status === 'posted'
+                        (self::currentUser()?->can('collections.void') ?? false) && $record->status === 'posted'
                     )
                     ->form([
                         Forms\Components\Textarea::make('reason')
@@ -104,7 +106,7 @@ class PaymentResource extends Resource
                         app(PaymentReversalService::class)->void(
                             (int) $record->id,
                             $stationId,
-                            (int) auth()->id(),
+                            (int) (self::currentUser()?->id ?? 0),
                             now()->format('Y-m-d H:i:s'),
                             (string) $data['reason'],
                         );
@@ -131,9 +133,15 @@ class PaymentResource extends Resource
             : $query->whereRaw('1 = 0');
     }
 
+    private static function currentUser(): ?User
+    {
+        $user = request()->user();
+        return $user instanceof User ? $user : null;
+    }
+
     public static function canViewAny(): bool
     {
-        return auth()->user()?->can('collections.view') ?? false;
+        return self::currentUser()?->can('collections.view') ?? false;
     }
 
     public static function canCreate(): bool { return false; }
