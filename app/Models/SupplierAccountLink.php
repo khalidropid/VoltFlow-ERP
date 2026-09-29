@@ -15,6 +15,7 @@ class SupplierAccountLink extends Model
         'supplier_id',
         'payable_account_id',
         'expense_account_id',
+        'tax_account_id',
     ];
 
     public function supplier(): BelongsTo
@@ -30,5 +31,10 @@ class SupplierAccountLink extends Model
     public function expenseAccount(): BelongsTo
     {
         return $this->belongsTo(ChartOfAccount::class, 'expense_account_id');
+    }
+
+    public function taxAccount(): BelongsTo
+    {
+        return $this->belongsTo(ChartOfAccount::class, 'tax_account_id');
     }
 }
