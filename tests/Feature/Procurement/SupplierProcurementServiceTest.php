@@ -284,7 +284,6 @@ class SupplierProcurementServiceTest extends TestCase
         $voided = $service->void($payment->id, '2026-09-29 11:00:00');
 
         $this->assertSame('voided', $voided->status);
-        $this->assertSame('100000', (string) $voided->id > '0' ? '100000' : '0');
         $this->assertSame('500.0000', (string) $cash->fresh()->balance);
         $this->assertSame('posted', $invoice->fresh()->status);
         $this->assertSame('0.0000', (string) $invoice->fresh()->paid_amount);
