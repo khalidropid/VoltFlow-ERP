@@ -5,8 +5,8 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\UserDeviceResource\Pages;
 use App\Models\User;
 use App\Models\UserDevice;
-use App\Services\Integration\IntegrationService;
 use App\Services\Audit\AuditLogger;
+use App\Services\Integration\IntegrationService;
 use App\Support\StationContext;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -22,7 +22,7 @@ class UserDeviceResource extends Resource
     public static function getModelLabel(): string { return 'جهاز مستخدم'; }
     public static function getPluralModelLabel(): string { return 'أجهزة المستخدمين'; }
 
-    public static function canViewAny(): bool { return auth()->user()?->can('integration.view') ?? false; }
+    public static function canViewAny(): bool { return self::currentUser()?->can('integration.view') ?? false; }
     public static function canCreate(): bool { return false; }
     public static function canEdit($record): bool { return false; }
     public static function canDelete($record): bool { return false; }
@@ -57,12 +57,10 @@ class UserDeviceResource extends Resource
             Tables\Actions\Action::make('approve')
                 ->label('اعتماد الجهاز')
                 ->icon('heroicon-o-check-circle')
-                ->visible(fn (UserDevice $record): bool => ! $record->is_approved && auth()->user()?->can('integration.manage') === true)
+                ->visible(fn (UserDevice $record): bool => ! $record->is_approved && (self::currentUser()?->can('integration.manage') ?? false))
                 ->requiresConfirmation()
                 ->action(function (UserDevice $record): void {
                     $device = app(IntegrationService::class)->approveDevice($record);
-                    $user = request()->user();
-                    $actor = $user instanceof User ? $user : null;
                     app(AuditLogger::class)->record(
                         event: 'device.approved',
                         auditable: $device,
@@ -73,6 +71,13 @@ class UserDeviceResource extends Resource
                     );
                 }),
         ]);
+    }
+
+    private static function currentUser(): ?User
+    {
+        $user = request()->user();
+
+        return $user instanceof User ? $user : null;
     }
 
     public static function getPages(): array
