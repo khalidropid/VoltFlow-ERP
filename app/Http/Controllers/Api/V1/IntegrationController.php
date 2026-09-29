@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\IntegrationBatch;
 use App\Models\IntegrationSource;
+use App\Services\Audit\AuditLogger;
 use App\Services\Integration\IntegrationException;
 use App\Services\Integration\IntegrationService;
 use Illuminate\Http\JsonResponse;
@@ -12,7 +13,7 @@ use Illuminate\Http\Request;
 
 class IntegrationController extends Controller
 {
-    public function storeEvent(Request $request, IntegrationService $service): JsonResponse
+    public function storeEvent(Request $request, IntegrationService $service, AuditLogger $auditLogger): JsonResponse
     {
         abort_unless($request->user()->can('integration.manage'), 403);
 
@@ -49,6 +50,20 @@ class IntegrationController extends Controller
             payload: $data['payload'],
             batch: $batch,
         );
+
+        if ($created) {
+            $auditLogger->record(
+                event: 'integration.event.received',
+                auditable: $event,
+                newValues: [
+                    'source_code' => $source->code,
+                    'entity_type' => $event->entity_type,
+                    'external_id' => $event->external_id,
+                    'event_type' => $event->event_type,
+                ],
+                request: $request,
+            );
+        }
 
         return response()->json(['data' => $event], $created ? 201 : 200);
     }
