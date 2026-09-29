@@ -6,6 +6,7 @@ use App\Filament\Resources\Concerns\StationScopedResource;
 use App\Filament\Resources\PayrollSlipResource\Pages;
 use App\Models\CashAccount;
 use App\Models\PayrollSlip;
+use App\Models\User;
 use App\Services\Payroll\PayrollService;
 use App\Support\StationContext;
 use Filament\Forms;
@@ -75,27 +76,27 @@ class PayrollSlipResource extends Resource
             Tables\Columns\TextColumn::make('gross_amount')->label('الإجمالي')->numeric(decimalPlaces:4),
             Tables\Columns\TextColumn::make('deduction_amount')->label('الخصومات')->numeric(decimalPlaces:4),
             Tables\Columns\TextColumn::make('net_amount')->label('الصافي')->numeric(decimalPlaces:4),
-            Tables\Columns\BadgeColumn::make('status')->label('الحالة')->colors([
-                'gray'=>'draft','warning'=>'approved','success'=>'paid',
-            ])->formatStateUsing(fn(string $state): string => match($state) {
+            Tables\Columns\TextColumn::make('status')->label('الحالة')->badge()
+            ->color(fn(string $state): string => match($state) { 'draft'=>'gray','approved'=>'warning','paid'=>'success',default=>'gray', })
+            ->formatStateUsing(fn(string $state): string => match($state) {
                 'draft'=>'مسودة','approved'=>'معتمد','paid'=>'مدفوع',default=>$state,
             }),
         ])->actions([
             Tables\Actions\ViewAction::make(),
             Tables\Actions\Action::make('approve')->label('اعتماد')->color('warning')
-                ->visible(fn(PayrollSlip $r): bool => $r->status === 'draft' && (auth()->user()?->can('payroll.process') ?? false))
+                ->visible(fn(PayrollSlip $r): bool => $r->status === 'draft' && (self::currentUser()?->can('payroll.process') ?? false))
                 ->requiresConfirmation()->action(function(PayrollSlip $r): void {
                     app(PayrollService::class)->approveSlip((int)$r->id);
                     Notification::make()->success()->title('تم اعتماد كشف الراتب')->send();
                 }),
             Tables\Actions\Action::make('post')->label('ترحيل محاسبي')->color('success')
-                ->visible(fn(PayrollSlip $r): bool => $r->status === 'approved' && (auth()->user()?->can('payroll.post') ?? false))
+                ->visible(fn(PayrollSlip $r): bool => $r->status === 'approved' && (self::currentUser()?->can('payroll.post') ?? false))
                 ->requiresConfirmation()->action(function(PayrollSlip $r): void {
-                    app(PayrollService::class)->postSlipToAccounting((int)$r->id,auth()->user());
+                    app(PayrollService::class)->postSlipToAccounting((int)$r->id,self::currentUser());
                     Notification::make()->success()->title('تم ترحيل كشف الراتب')->send();
                 }),
             Tables\Actions\Action::make('pay')->label('دفع الراتب')->color('primary')
-                ->visible(fn(PayrollSlip $r): bool => $r->status === 'approved' && $r->journal_entry_id && (auth()->user()?->can('payroll.pay') ?? false))
+                ->visible(fn(PayrollSlip $r): bool => $r->status === 'approved' && $r->journal_entry_id && (self::currentUser()?->can('payroll.pay') ?? false))
                 ->form([
                     Forms\Components\Select::make('cash_account_id')->label('النقدية / البنك')
                         ->options(fn()=>CashAccount::query()->where('station_id',app(StationContext::class)->currentId() ?? 0)->where('is_active',true)->orderBy('name')->pluck('name','id')->all())
@@ -105,17 +106,23 @@ class PayrollSlipResource extends Resource
                     ])->required()->default('bank')->native(false),
                 ])->action(function(PayrollSlip $r,array $data): void {
                     abort_unless((int)$r->payrollRun()->firstOrFail()->station_id === (int)app(StationContext::class)->currentId(),403);
-                    app(PayrollService::class)->paySlip((int)$r->id,(int)$data['cash_account_id'],(string)Str::uuid(),now()->format('Y-m-d H:i:s'),(string)$data['method'],auth()->user());
+                    app(PayrollService::class)->paySlip((int)$r->id,(int)$data['cash_account_id'],(string)Str::uuid(),now()->format('Y-m-d H:i:s'),(string)$data['method'],self::currentUser());
                     Notification::make()->success()->title('تم دفع الراتب')->send();
                 }),
             Tables\Actions\Action::make('voidPayment')->label('إلغاء الدفع')->color('danger')
-                ->visible(fn(PayrollSlip $r): bool => $r->status === 'paid' && (auth()->user()?->can('payroll.void') ?? false))
+                ->visible(fn(PayrollSlip $r): bool => $r->status === 'paid' && (self::currentUser()?->can('payroll.void') ?? false))
                 ->requiresConfirmation()->action(function(PayrollSlip $r): void {
                     $payment=$r->payment()->firstOrFail();
                     app(PayrollService::class)->voidPayment((int)$payment->id,now()->format('Y-m-d H:i:s'),auth()->user());
                     Notification::make()->success()->title('تم إلغاء دفع الراتب')->send();
                 }),
         ])->defaultSort('id','desc');
+    }
+
+    private static function currentUser(): ?User
+    {
+        $user = request()->user();
+        return $user instanceof User ? $user : null;
     }
 
     public static function canEdit($record): bool
