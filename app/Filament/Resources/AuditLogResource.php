@@ -4,7 +4,9 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\AuditLogResource\Pages;
 use App\Models\AuditLog;
+use App\Models\User;
 use App\Support\StationContext;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -21,21 +23,21 @@ class AuditLogResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->can('audit.view') ?? false;
+        return self::currentUser()?->can('audit.view') ?? false;
     }
 
     public static function canCreate(): bool { return false; }
     public static function canEdit($record): bool { return false; }
     public static function canDelete($record): bool { return false; }
 
-    public static function getEloquentQuery()
+    public static function getEloquentQuery(): Builder
     {
         $stationId = app(StationContext::class)->currentId();
 
         return parent::getEloquentQuery()->when(
             $stationId,
-            fn ($query) => $query->where('station_id', $stationId),
-            fn ($query) => $query->whereRaw('1 = 0'),
+            fn (Builder $query) => $query->where('station_id', $stationId),
+            fn (Builder $query) => $query->whereRaw('1 = 0'),
         );
     }
 
@@ -50,6 +52,13 @@ class AuditLogResource extends Resource
             Tables\Columns\TextColumn::make('request_id')->label('Request ID')->toggleable(),
             Tables\Columns\TextColumn::make('ip_address')->label('IP')->toggleable(),
         ])->defaultSort('created_at', 'desc');
+    }
+
+    private static function currentUser(): ?User
+    {
+        $user = request()->user();
+
+        return $user instanceof User ? $user : null;
     }
 
     public static function getPages(): array
