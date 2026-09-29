@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\LegacyIdMappingResource\Pages;
 use App\Models\LegacyIdMapping;
+use App\Models\User;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -18,7 +19,7 @@ class LegacyIdMappingResource extends Resource
     public static function getModelLabel(): string { return 'ربط سجل'; }
     public static function getPluralModelLabel(): string { return 'روابط السجلات القديمة'; }
 
-    public static function canViewAny(): bool { return auth()->user()?->can('integration.view') ?? false; }
+    public static function canViewAny(): bool { return self::currentUser()?->can('integration.view') ?? false; }
     public static function canCreate(): bool { return false; }
     public static function canEdit($record): bool { return false; }
     public static function canDelete($record): bool { return false; }
@@ -33,6 +34,13 @@ class LegacyIdMappingResource extends Resource
             Tables\Columns\TextColumn::make('entity_id')->label('المعرّف الحالي'),
             Tables\Columns\TextColumn::make('created_at')->label('تاريخ الربط')->dateTime()->sortable(),
         ])->defaultSort('created_at', 'desc');
+    }
+
+    private static function currentUser(): ?User
+    {
+        $user = request()->user();
+
+        return $user instanceof User ? $user : null;
     }
 
     public static function getPages(): array
