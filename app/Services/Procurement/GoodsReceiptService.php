@@ -144,11 +144,11 @@ class GoodsReceiptService
                 ]);
             }
 
+            $receipt->update(['status' => 'posted']);
+
             if ($purchaseOrder) {
                 $this->refreshPurchaseOrderStatus($purchaseOrder);
             }
-
-            $receipt->update(['status' => 'posted']);
 
             $auditLogger = app(\App\Services\Audit\AuditLogger::class);
             $auditLogger->record(
