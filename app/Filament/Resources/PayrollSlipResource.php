@@ -113,7 +113,7 @@ class PayrollSlipResource extends Resource
                 ->visible(fn(PayrollSlip $r): bool => $r->status === 'paid' && (self::currentUser()?->can('payroll.void') ?? false))
                 ->requiresConfirmation()->action(function(PayrollSlip $r): void {
                     $payment=$r->payment()->firstOrFail();
-                    app(PayrollService::class)->voidPayment((int)$payment->id,now()->format('Y-m-d H:i:s'),auth()->user());
+                    app(PayrollService::class)->voidPayment((int)$payment->id,now()->format('Y-m-d H:i:s'),self::currentUser());
                     Notification::make()->success()->title('تم إلغاء دفع الراتب')->send();
                 }),
         ])->defaultSort('id','desc');
