@@ -47,6 +47,8 @@ class AccessControlSeeder extends Seeder
             'banking.manage',
             'reports.view',
             'audit.view',
+            'integration.view',
+            'integration.manage',
             'access.manage',
         ];
 
