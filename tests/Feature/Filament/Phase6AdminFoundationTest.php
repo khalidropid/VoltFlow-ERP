@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Filament;
 
+use App\Filament\Resources\CustomerResource;
+use App\Models\Customer;
 use App\Models\Station;
 use App\Models\User;
 use App\Support\StationContext;
@@ -49,6 +51,57 @@ class Phase6AdminFoundationTest extends TestCase
 
         $context->set($stationA->id);
         $this->assertSame($stationA->id, $context->currentId());
+    }
+
+    public function test_customer_resource_isolation_follows_current_station(): void
+    {
+        $stationA = Station::create([
+            'code' => 'ST-A',
+            'name' => 'Station A',
+            'name_ar' => 'المحطة أ',
+            'timezone' => 'Asia/Aden',
+            'currency_code' => 'YER',
+            'is_active' => true,
+        ]);
+
+        $stationB = Station::create([
+            'code' => 'ST-B',
+            'name' => 'Station B',
+            'name_ar' => 'المحطة ب',
+            'timezone' => 'Asia/Aden',
+            'currency_code' => 'YER',
+            'is_active' => true,
+        ]);
+
+        Customer::create([
+            'station_id' => $stationA->id,
+            'code' => 'C-A',
+            'name' => 'Customer A',
+            'status' => 'active',
+            'opening_balance' => '0.0000',
+        ]);
+
+        Customer::create([
+            'station_id' => $stationB->id,
+            'code' => 'C-B',
+            'name' => 'Customer B',
+            'status' => 'active',
+            'opening_balance' => '0.0000',
+        ]);
+
+        $user = User::factory()->create(['is_active' => true]);
+        $user->stations()->attach($stationA->id, ['is_default' => true]);
+        $user->stations()->attach($stationB->id, ['is_default' => false]);
+
+        $this->actingAs($user);
+
+        $context = app(StationContext::class);
+
+        $this->assertSame([ 'C-A' ], CustomerResource::getEloquentQuery()->pluck('code')->all());
+
+        $context->set($stationB->id);
+
+        $this->assertSame([ 'C-B' ], CustomerResource::getEloquentQuery()->pluck('code')->all());
     }
 
     public function test_station_context_cannot_select_unassigned_station(): void
