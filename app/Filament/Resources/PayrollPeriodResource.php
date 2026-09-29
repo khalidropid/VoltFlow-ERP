@@ -45,9 +45,9 @@ class PayrollPeriodResource extends Resource
             Tables\Columns\TextColumn::make('code')->label('الفترة')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('starts_on')->label('من')->date(),
             Tables\Columns\TextColumn::make('ends_on')->label('إلى')->date(),
-            Tables\Columns\BadgeColumn::make('status')->label('الحالة')->colors([
-                'success'=>'open','gray'=>'closed',
-            ])->formatStateUsing(fn(string $state): string => $state === 'open' ? 'مفتوحة' : 'مغلقة'),
+            Tables\Columns\TextColumn::make('status')->label('الحالة')->badge()
+                ->color(fn(string $state): string => $state === 'open' ? 'success' : 'gray')
+                ->formatStateUsing(fn(string $state): string => $state === 'open' ? 'مفتوحة' : 'مغلقة'),
             Tables\Columns\TextColumn::make('payrollRuns_count')->counts('payrollRuns')->label('التشغيلات'),
         ])->actions([
             Tables\Actions\EditAction::make()->visible(fn(PayrollPeriod $record): bool => $record->status === 'open'),

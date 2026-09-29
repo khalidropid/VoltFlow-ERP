@@ -58,11 +58,13 @@ class EmployeeResource extends Resource
             Tables\Columns\TextColumn::make('name')->label('الموظف')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('department.name')->label('القسم'),
             Tables\Columns\TextColumn::make('position.name')->label('الوظيفة'),
-            Tables\Columns\BadgeColumn::make('status')->label('الحالة')->colors([
-                'success'=>'active','gray'=>'inactive','danger'=>'terminated',
-            ])->formatStateUsing(fn (string $state): string => match($state) {
-                'active'=>'نشط','inactive'=>'غير نشط','terminated'=>'منتهٍ',default=>$state,
-            }),
+            Tables\Columns\TextColumn::make('status')->label('الحالة')->badge()
+                ->color(fn (string $state): string => match($state) {
+                    'active'=>'success','inactive'=>'gray','terminated'=>'danger',default=>'gray',
+                })
+                ->formatStateUsing(fn (string $state): string => match($state) {
+                    'active'=>'نشط','inactive'=>'غير نشط','terminated'=>'منتهٍ',default=>$state,
+                }),
         ])->actions([Tables\Actions\EditAction::make()])
           ->defaultSort('employee_no');
     }

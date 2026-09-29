@@ -62,6 +62,7 @@ class Phase6HrPayrollOperationsTest extends TestCase
             'gross_amount'=>'100000.0000','deduction_amount'=>'0.0000','net_amount'=>'100000.0000','status'=>'approved',
         ]);
 
+        /** @var User $user */
         $user=User::factory()->create(['is_active'=>true]);
         $user->assignRole('hr_manager');
         $user->stations()->attach($stationA->id,['is_default'=>true]);

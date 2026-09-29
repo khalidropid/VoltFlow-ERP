@@ -51,11 +51,13 @@ class PayrollRunResource extends Resource
             Tables\Columns\TextColumn::make('payrollPeriod.code')->label('الفترة')->sortable(),
             Tables\Columns\TextColumn::make('run_at')->label('وقت التشغيل')->dateTime(),
             Tables\Columns\TextColumn::make('slips_count')->counts('slips')->label('الكشوف'),
-            Tables\Columns\BadgeColumn::make('status')->label('الحالة')->colors([
-                'gray'=>'draft','warning'=>'processing','success'=>'completed','danger'=>'cancelled',
-            ])->formatStateUsing(fn(string $state): string => match($state) {
-                'draft'=>'مسودة','processing'=>'قيد المعالجة','completed'=>'مكتمل','cancelled'=>'ملغى',default=>$state,
-            }),
+            Tables\Columns\TextColumn::make('status')->label('الحالة')->badge()
+                ->color(fn(string $state): string => match($state) {
+                    'draft'=>'gray','processing'=>'warning','completed'=>'success','cancelled'=>'danger',default=>'gray',
+                })
+                ->formatStateUsing(fn(string $state): string => match($state) {
+                    'draft'=>'مسودة','processing'=>'قيد المعالجة','completed'=>'مكتمل','cancelled'=>'ملغى',default=>$state,
+                }),
         ])->actions([
             Tables\Actions\EditAction::make()->visible(fn(PayrollRun $record): bool => in_array($record->status,['draft','processing'],true)),
             Tables\Actions\Action::make('generateSlip')->label('توليد كشف')->icon('heroicon-o-document-plus')
