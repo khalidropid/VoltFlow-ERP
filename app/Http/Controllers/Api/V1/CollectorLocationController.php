@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Services\Audit\AuditLogger;
 use App\Services\Integration\IntegrationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CollectorLocationController extends Controller
 {
-    public function store(Request $request, IntegrationService $service): JsonResponse
+    public function store(Request $request, IntegrationService $service, AuditLogger $auditLogger): JsonResponse
     {
         $data = $request->validate([
             'station_id' => ['required', 'integer'],
@@ -35,6 +36,18 @@ class CollectorLocationController extends Controller
             longitude: $data['longitude'],
             recordedAt: $data['recorded_at'],
             accuracyMeters: $data['accuracy_meters'] ?? null,
+        );
+
+        $auditLogger->record(
+            event: 'collector.location.recorded',
+            auditable: $location,
+            newValues: [
+                'station_id' => $location->station_id,
+                'collector_id' => $location->collector_id,
+                'device_id' => $location->device_id,
+            ],
+            stationId: $location->station_id,
+            request: $request,
         );
 
         return response()->json(['data' => $location], 201);
