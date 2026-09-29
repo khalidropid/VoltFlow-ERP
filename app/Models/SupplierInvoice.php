@@ -15,6 +15,7 @@ class SupplierInvoice extends Model
     protected $fillable = [
         'transaction_uuid', 'station_id', 'supplier_id', 'goods_receipt_id', 'number',
         'invoice_date', 'due_date', 'subtotal', 'tax', 'total', 'paid_amount', 'status',
+        'journal_entry_id',
     ];
 
     protected function casts(): array
@@ -37,6 +38,11 @@ class SupplierInvoice extends Model
     public function goodsReceipt(): BelongsTo
     {
         return $this->belongsTo(GoodsReceipt::class);
+    }
+
+    public function journalEntry(): BelongsTo
+    {
+        return $this->belongsTo(JournalEntry::class);
     }
 
     public function items(): HasMany
