@@ -1,0 +1,5 @@
+<?php
+namespace App\Filament\Resources\PayrollPeriodResource\Pages;
+use App\Filament\Resources\PayrollPeriodResource;
+use Filament\Resources\Pages\ListRecords;
+class ListPayrollPeriods extends ListRecords { protected static string $resource=PayrollPeriodResource::class; }
