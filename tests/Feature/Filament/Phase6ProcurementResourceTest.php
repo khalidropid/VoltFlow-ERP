@@ -90,7 +90,7 @@ class Phase6ProcurementResourceTest extends TestCase
 
         app(StationContext::class)->set($stationB->id);
 
-        $this->assertSame([], SupplierResource::getEloquentQuery()->pluck('code')->all());
+        $this->assertSame(['SUP-B'], SupplierResource::getEloquentQuery()->pluck('code')->all());
         $this->assertSame([], PurchaseRequestResource::getEloquentQuery()->pluck('number')->all());
         $this->assertSame([], PurchaseOrderResource::getEloquentQuery()->pluck('number')->all());
     }
