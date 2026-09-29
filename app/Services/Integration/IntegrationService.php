@@ -52,6 +52,25 @@ class IntegrationService
                 return [$existing, false];
             }
 
+            $existing = IntegrationEvent::query()
+                ->where('integration_source_id', $source->id)
+                ->where('entity_type', $entityType)
+                ->where('external_id', $externalId)
+                ->where('event_type', $eventType)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                if ($this->canonicalPayload($existing->payload) !== $this->canonicalPayload($payload)) {
+                    throw new IntegrationException(
+                        'External integration identifier was already used with a different payload.',
+                        409
+                    );
+                }
+
+                return [$existing, false];
+            }
+
             $event = IntegrationEvent::create([
                 'integration_source_id' => $source->id,
                 'integration_batch_id' => $batch?->id,
