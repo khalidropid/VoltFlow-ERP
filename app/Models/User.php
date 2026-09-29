@@ -28,6 +28,7 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->is_active
             && $panel->getId() === 'admin'
+            && $this->can('dashboard.view')
             && $this->stations()->exists();
     }
 
