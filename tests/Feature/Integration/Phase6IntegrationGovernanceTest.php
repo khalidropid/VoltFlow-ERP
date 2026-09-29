@@ -6,6 +6,7 @@ use App\Filament\Resources\AuditLogResource;
 use App\Filament\Resources\CollectorLocationResource;
 use App\Filament\Resources\IntegrationEventResource;
 use App\Filament\Resources\UserDeviceResource;
+use App\Models\AuditLog;
 use App\Models\IntegrationEvent;
 use App\Models\IntegrationSource;
 use App\Models\Station;
@@ -59,6 +60,19 @@ class Phase6IntegrationGovernanceTest extends TestCase
         $collector->assignRole('collector');
         $collector->stations()->attach($stationA->id, ['is_default' => true]);
 
+        $this->actingAs($collector, 'sanctum');
+
+        $this->postJson('/api/v1/integration/events', [
+            'source_code' => 'flutter-mobile',
+            'event_uuid' => (string) Str::uuid(),
+            'entity_type' => 'collection',
+            'external_id' => 'COL-DENIED',
+            'event_type' => 'received',
+            'payload' => ['amount' => '50.00'],
+        ], [
+            'Idempotency-Key' => 'evt-denied-1001',
+        ])->assertForbidden();
+
         $this->actingAs($admin, 'sanctum');
 
         $eventPayload = [
@@ -79,14 +93,23 @@ class Phase6IntegrationGovernanceTest extends TestCase
             'Idempotency-Key' => 'evt-key-1002',
         ])->assertOk();
 
+        $sameExternalIdNewUuid = $eventPayload;
+        $sameExternalIdNewUuid['event_uuid'] = (string) Str::uuid();
+
+        $this->postJson('/api/v1/integration/events', $sameExternalIdNewUuid, [
+            'Idempotency-Key' => 'evt-key-1003',
+        ])->assertOk();
+
         $changedPayload = $eventPayload;
+        $changedPayload['event_uuid'] = (string) Str::uuid();
         $changedPayload['payload']['amount'] = '200.00';
 
         $this->postJson('/api/v1/integration/events', $changedPayload, [
-            'Idempotency-Key' => 'evt-key-1003',
+            'Idempotency-Key' => 'evt-key-1004',
         ])->assertStatus(409);
 
         $this->assertSame(1, IntegrationEvent::query()->count());
+        $this->assertSame(1, AuditLog::query()->where('event', 'integration.event.received')->count());
 
         $this->actingAs($collector, 'sanctum');
 
@@ -104,6 +127,8 @@ class Phase6IntegrationGovernanceTest extends TestCase
             'device_id' => 'PHONE-A',
             'is_approved' => false,
         ]);
+
+        $this->assertSame(1, AuditLog::query()->where('event', 'device.registered')->count());
 
         $this->postJson('/api/v1/collector-locations', [
             'station_id' => $stationA->id,
@@ -136,6 +161,8 @@ class Phase6IntegrationGovernanceTest extends TestCase
         ], [
             'Idempotency-Key' => 'location-key-1002',
         ])->assertCreated();
+
+        $this->assertSame(1, AuditLog::query()->where('event', 'collector.location.recorded')->count());
 
         $this->postJson('/api/v1/collector-locations', [
             'station_id' => $stationB->id,
