@@ -26,9 +26,11 @@ final class InventoryService
             $oldValue=Decimal::multiply($oldQty,(string)$stock->average_cost);
             $inValue=Decimal::multiply($q,$cost);
             $newQty=Decimal::add($oldQty,$q);
-            $avg=$newQty==='0.0000'?'0.0000':Decimal::multiply(Decimal::add($oldValue,$inValue),Decimal::normalize('1.0000'));
             // Keep weighted-average calculation deterministic at DECIMAL(20,4); PostgreSQL performs the division.
-            $avg=(string)DB::selectOne('select round((?::numeric / nullif(?::numeric,0)),4) as v', [Decimal::add($oldValue,$inValue),$newQty])->v;
+            $avg = (string) DB::selectOne(
+                'select round((?::numeric / nullif(?::numeric,0)),4) as v',
+                [Decimal::add($oldValue, $inValue), $newQty]
+            )->v;
             $movement=StockMovement::create(['transaction_uuid'=>$uuid,'station_id'=>$stationId,'warehouse_id'=>$warehouseId,'item_id'=>$itemId,'movement_type'=>'receipt','quantity'=>$q,'unit_cost'=>$cost,'reference_type'=>$referenceType,'reference_id'=>$referenceId,'moved_at'=>$movedAt]);
             $stock->update(['quantity'=>$newQty,'average_cost'=>Decimal::normalize($avg)]);
             return $movement;
