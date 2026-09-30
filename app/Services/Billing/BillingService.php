@@ -5,6 +5,7 @@ namespace App\Services\Billing;
 use App\Models\Invoice;
 use App\Models\MeterReading;
 use App\Models\Tariff;
+use App\Models\CustomerTariff;
 use App\Support\Decimal;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -18,10 +19,24 @@ class BillingService
             if ($reading->station_id !== $stationId || $reading->status !== 'validated') throw new RuntimeException('The reading is not valid for billing.');
             if (Invoice::query()->where('reading_id', $reading->id)->exists()) throw new RuntimeException('This reading has already been invoiced.');
 
-            $tariff = Tariff::query()->where('station_id', $stationId)->where('is_active', true)
+            $tariff = CustomerTariff::query()
+                ->where('station_id', $stationId)
+                ->where('customer_id', $reading->meter->customer_id)
+                ->where('is_active', true)
                 ->whereDate('effective_from', '<=', $reading->reading_at)
                 ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', $reading->reading_at))
-                ->with(['slabs' => fn ($q) => $q->orderBy('sort_order')])->first();
+                ->with(['tariff.slabs' => fn ($q) => $q->orderBy('sort_order')])
+                ->orderByDesc('effective_from')
+                ->first()?->tariff;
+
+            if (!$tariff) {
+                $tariff = Tariff::query()->where('station_id', $stationId)->where('is_active', true)
+                    ->whereDate('effective_from', '<=', $reading->reading_at)
+                    ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', $reading->reading_at))
+                    ->with(['slabs' => fn ($q) => $q->orderBy('sort_order')])
+                    ->orderByDesc('effective_from')
+                    ->first();
+            }
 
             if (!$tariff || $tariff->slabs->isEmpty()) throw new RuntimeException('No active tariff is available for this reading date.');
 
