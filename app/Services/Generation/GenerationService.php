@@ -23,7 +23,9 @@ final class GenerationService
             $hours = null;
             if ($stoppedAt !== null) {
                 $seconds = strtotime($stoppedAt) - strtotime($startedAt);
-                $hours = Decimal::normalize((string) intdiv($seconds * 10000, 3600) / 10000);
+                $wholeHours = intdiv($seconds, 3600);
+                $fraction = intdiv(($seconds % 3600) * 10000, 3600);
+                $hours = Decimal::normalize($wholeHours . '.' . str_pad((string) $fraction, 4, '0', STR_PAD_LEFT));
             }
 
             return GeneratorRuntimeLog::create([
