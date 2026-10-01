@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\CollectionController;
 use App\Http\Controllers\Api\V1\SettlementController;
+use App\Http\Controllers\Api\V1\OperationsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -20,6 +21,10 @@ Route::prefix('v1')->group(function () {
             Route::post('/collections/{payment}/void', [CollectionController::class, 'void']);
             Route::post('/collection-settlements', [SettlementController::class, 'store']);
             Route::post('/collection-settlements/{settlement}/void', [SettlementController::class, 'void']);
+            Route::post('/operations/generation', [OperationsController::class, 'generation']);
+            Route::post('/operations/fuel/receipts', [OperationsController::class, 'fuelReceipt']);
+            Route::post('/operations/fuel/issues', [OperationsController::class, 'fuelIssue']);
+            Route::post('/operations/fuel/adjustments', [OperationsController::class, 'fuelAdjustment']);
         });
     });
 });
