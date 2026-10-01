@@ -119,7 +119,11 @@ class CustomerResource extends Resource
 
     public static function canEdit($record): bool
     {
-        return auth()->user()?->can('customers.manage') ?? false;
+        $stationId = app(StationContext::class)->currentId();
+
+        return $stationId !== null
+            && (int) $record->station_id === (int) $stationId
+            && (auth()->user()?->can('customers.manage') ?? false);
     }
 
     public static function canDelete($record): bool { return false; }
