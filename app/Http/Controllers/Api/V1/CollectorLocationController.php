@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Services\Audit\AuditLogger;
 use App\Services\Integration\IntegrationService;
+use App\Support\Decimal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,12 +22,7 @@ class CollectorLocationController extends Controller
             'accuracy_meters' => ['nullable', 'regex:/^\d+(?:\.\d{1,2})?$/'],
         ]);
 
-        abort_unless(
-            (float) $data['latitude'] >= -90 && (float) $data['latitude'] <= 90
-            && (float) $data['longitude'] >= -180 && (float) $data['longitude'] <= 180,
-            422,
-            'Invalid geographic coordinates.'
-        );
+        if (Decimal::compare($data['latitude'], '-90') < 0 || Decimal::compare($data['latitude'], '90') > 0 || Decimal::compare($data['longitude'], '-180') < 0 || Decimal::compare($data['longitude'], '180') > 0) { abort(422, 'Invalid geographic coordinates.'); }
 
         $location = $service->recordCollectorLocation(
             collector: $request->user(),
