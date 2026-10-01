@@ -31,8 +31,8 @@ class BankReconciliationResource extends Resource
                 Tables\Columns\TextColumn::make('status')->label('status')->searchable()->sortable()])->actions([Tables\Actions\EditAction::make()])->bulkActions([Tables\Actions\BulkActionGroup::make([])]);}
  public static function getEloquentQuery(): Builder{$q=parent::getEloquentQuery();$id=app(StationContext::class)->currentId();return $id?$q->where($q->getModel()->getTable().'.station_id',$id):$q->whereRaw('1=0');}
  public static function canViewAny(): bool{return auth()->user()?->can('accounting.view')??false;}
- public static function canCreate(): bool{return (auth()->user()?->can('banking.manage')??false)&&app(StationContext::class)->currentId()!==null;}
- public static function canEdit($record): bool{return auth()->user()?->can('banking.manage')??false;}
+ public static function canCreate(): bool{return false;}
+ public static function canEdit($record): bool{return false;}
  public static function canDelete($record): bool{return false;}
  public static function getPages(): array{return ['index'=>Pages\ListBankReconciliations::route('/'),'create'=>Pages\CreateBankReconciliation::route('/create'),'edit'=>Pages\EditBankReconciliation::route('/{record}/edit')];}
 }
