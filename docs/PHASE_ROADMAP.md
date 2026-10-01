@@ -5,20 +5,20 @@ This document is the authoritative delivery sequence for the project. Phase name
 | Phase | Official scope | Current classification |
 | --- | --- | --- |
 | 6E | Supplier Procurement Services | Completed foundation |
-| 6F | Controls & Reports | Current normalization phase |
-| 6G | Management / Operations | Next structural phase |
-| 6H | Billing & Metering | Not started as the canonical phase |
-| 6I | Collections & Cash | Partially implemented foundation |
-| 6J | Generation | Models/resources prepared; domain workflow still required |
-| 6K | Fuel & Maintenance | Models/resources prepared; domain workflow still required |
-| 6L | HR & Payroll | Payroll domain/UI exists as forward-prepared work |
-| 6M | Accounting & Treasury | Accounting foundation exists; treasury completion required |
-| 6N | Flutter / API Integration | Existing integration branch is reserved for this phase |
-| 6O | Security & Audit Hardening | Existing audit work is reserved for this phase |
-| 7 | Reconciliation + Reports | Final subledger/GL reconciliation phase |
-| 8 | Legacy Migration | Mapping, dry-run, anomaly detection, staged migration |
-| 9 | Production Readiness | Performance, backups, queues, logging, security review, deployment |
-| 10 | UAT / Go-Live | Full business scenarios, UAT fixes, release |
+| 6F | Controls & Reports | Completed |
+| 6G | Management / Operations | Completed |
+| 6H | Billing & Metering | Implementation complete; final validation pending |
+| 6I | Collections & Cash | Implementation complete; final validation pending |
+| 6J | Generation | Implementation complete; final validation pending |
+| 6K | Fuel & Maintenance | Implementation complete; final validation pending |
+| 6L | HR & Payroll | Implementation complete; final validation pending |
+| 6M | Accounting & Treasury | Implementation complete; final validation pending |
+| 6N | Flutter / API Integration | Implementation complete; final validation pending |
+| 6O | Security & Audit Hardening | Implementation complete; final validation pending |
+| 7 | Reconciliation + Reports | Implementation complete; final validation pending |
+| 8 | Legacy Migration | Implementation complete; production dry-run pending |
+| 9 | Production Readiness | Gate definitions implemented; environment validation pending |
+| 10 | UAT / Go-Live | UAT checklist implemented; execution pending |
 
 ## Phase completion standard
 
