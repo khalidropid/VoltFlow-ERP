@@ -7,12 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WarehouseStock extends Model
 {
-    protected $fillable = ['warehouse_id', 'item_id', 'quantity', 'average_cost'];
+    protected $fillable = ['warehouse_id', 'item_id', 'quantity', 'opening_quantity', 'average_cost'];
 
     protected function casts(): array
     {
         return [
             'quantity' => 'decimal:4',
+            'opening_quantity' => 'decimal:4',
             'average_cost' => 'decimal:4',
         ];
     }
