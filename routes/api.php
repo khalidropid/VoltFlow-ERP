@@ -5,6 +5,9 @@ use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\CollectionController;
 use App\Http\Controllers\Api\V1\SettlementController;
 use App\Http\Controllers\Api\V1\OperationsController;
+use App\Http\Controllers\Api\V1\IntegrationController;
+use App\Http\Controllers\Api\V1\DeviceController;
+use App\Http\Controllers\Api\V1\CollectorLocationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -25,6 +28,9 @@ Route::prefix('v1')->group(function () {
             Route::post('/operations/fuel/receipts', [OperationsController::class, 'fuelReceipt']);
             Route::post('/operations/fuel/issues', [OperationsController::class, 'fuelIssue']);
             Route::post('/operations/fuel/adjustments', [OperationsController::class, 'fuelAdjustment']);
+            Route::post('/integration/events', [IntegrationController::class, 'storeEvent']);
+            Route::post('/devices/register', [DeviceController::class, 'register']);
+            Route::post('/collector-locations', [CollectorLocationController::class, 'store']);
         });
     });
 });
