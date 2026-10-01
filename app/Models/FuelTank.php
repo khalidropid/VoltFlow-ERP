@@ -10,13 +10,14 @@ class FuelTank extends Model
 {
     use HasStation;
 
-    protected $fillable = ['station_id', 'code', 'name', 'capacity', 'current_quantity', 'is_active'];
+    protected $fillable = ['station_id', 'code', 'name', 'capacity', 'current_quantity', 'opening_quantity', 'is_active'];
 
     protected function casts(): array
     {
         return [
             'capacity' => 'decimal:4',
             'current_quantity' => 'decimal:4',
+            'opening_quantity' => 'decimal:4',
             'is_active' => 'boolean',
         ];
     }
