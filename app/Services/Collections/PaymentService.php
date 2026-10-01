@@ -6,6 +6,7 @@ use App\Models\CashAccount;
 use App\Models\CollectorAccount;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\PaymentAllocation;
 use App\Support\Decimal;
 use Illuminate\Support\Facades\DB;
 
@@ -67,6 +68,28 @@ class PaymentService
             $collector->save();
 
             return app(\App\Services\Accounting\CollectionAccountingService::class)->postPayment($payment, $collectorId);
+        }, 3);
+    }
+
+
+    public function allocate(int $stationId, int $paymentId, int $invoiceId, string $amount): PaymentAllocation
+    {
+        return DB::transaction(function () use ($stationId, $paymentId, $invoiceId, $amount) {
+            $payment = Payment::query()->whereKey($paymentId)->where('station_id', $stationId)->lockForUpdate()->firstOrFail();
+            $invoice = Invoice::query()->whereKey($invoiceId)->where('station_id', $stationId)->lockForUpdate()->firstOrFail();
+            if ($payment->status !== 'posted' || $invoice->status === 'void') throw new CollectionException('Payment or invoice is not allocatable.');
+            if ($payment->customer_id !== $invoice->customer_id) throw new CollectionException('Payment and invoice customer mismatch.');
+            $value = Decimal::normalize($amount);
+            if (Decimal::compare($value, '0') <= 0) throw new CollectionException('Allocation must be positive.');
+            $allocated = Decimal::normalize((string) PaymentAllocation::query()->where('payment_id', $payment->id)->sum('amount'));
+            if (Decimal::compare(Decimal::add($allocated, $value), (string) $payment->amount) > 0) throw new CollectionException('Allocation exceeds payment.');
+            $invoiceAllocated = Decimal::normalize((string) PaymentAllocation::query()->where('invoice_id', $invoice->id)->sum('amount'));
+            $remaining = Decimal::sub((string) $invoice->total, $invoiceAllocated);
+            if (Decimal::compare($value, $remaining) > 0) throw new CollectionException('Allocation exceeds invoice outstanding balance.');
+            $allocation = PaymentAllocation::create(['payment_id'=>$payment->id,'invoice_id'=>$invoice->id,'amount'=>$value]);
+            $newPaid = Decimal::add((string)$invoice->paid_amount, $value);
+            $invoice->update(['paid_amount'=>$newPaid,'status'=>Decimal::compare($newPaid,(string)$invoice->total)>=0?'paid':'partially_paid']);
+            return $allocation;
         }, 3);
     }
 
