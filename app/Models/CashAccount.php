@@ -17,6 +17,7 @@ class CashAccount extends Model
         'name',
         'type',
         'account_id',
+        'opening_balance',
         'balance',
         'is_active',
     ];
@@ -24,6 +25,7 @@ class CashAccount extends Model
     protected function casts(): array
     {
         return [
+            'opening_balance' => 'decimal:4',
             'balance' => 'decimal:4',
             'is_active' => 'boolean',
         ];
