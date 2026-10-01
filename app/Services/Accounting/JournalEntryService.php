@@ -71,7 +71,7 @@ class JournalEntryService
         return [$debit, $credit];
     }
 
-    private function normalize(string|int|float $value): string
+    private function normalize(string|int $value): string
     {
         $value = trim((string) $value);
         if (!preg_match('/^\d+(?:\.\d{1,4})?$/', $value)) {
