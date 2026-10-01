@@ -7,13 +7,14 @@ use App\Services\Generation\DistributionService;
 use App\Services\Fuel\FuelService;
 use App\Services\Fuel\FuelAdjustmentService;
 use Illuminate\Http\Request;
+use App\Support\StationContext;
 
 final class OperationsController
 {
     public function generation(Request $request, GenerationService $service)
     {
         $data=$request->validate(['generator_id'=>'required|integer','transaction_uuid'=>'required|uuid','reading_at'=>'required|date','energy_kwh'=>'required','active_power_kw'=>'nullable','reactive_power_kvar'=>'nullable','source'=>'nullable|string']);
-        $r=$service->recordGeneration((int)$request->user()->stations()->firstOrFail()->id,$data['generator_id'],$data['transaction_uuid'],$data['reading_at'],$data['energy_kwh'],$data['active_power_kw']??null,$data['reactive_power_kvar']??null,$data['source']??'api');
+        $r=$service->recordGeneration((int)app(StationContext::class)->currentId() ?? abort(403, 'A current station is required.'),$data['generator_id'],$data['transaction_uuid'],$data['reading_at'],$data['energy_kwh'],$data['active_power_kw']??null,$data['reactive_power_kvar']??null,$data['source']??'api');
         return response()->json($r,201);
     }
 
