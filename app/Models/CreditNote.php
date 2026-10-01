@@ -13,3 +13,5 @@ class CreditNote extends Model
     public function items(){return $this->hasMany(CreditNoteItem::class);}
     public function invoice(){return $this->belongsTo(Invoice::class);}
 }
+
+public function journalEntry() { return $this->belongsTo(\App\Models\JournalEntry::class); }
