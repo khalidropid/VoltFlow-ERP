@@ -33,7 +33,7 @@ final class StationReconciliationService
     {
         $cash=CashAccount::query()->whereKey($cashAccountId)->where('station_id',$stationId)->firstOrFail();
         $movements=DB::table('cash_movements')->where('station_id',$stationId)->where('cash_account_id',$cashAccountId)->selectRaw("COALESCE(SUM(CASE WHEN movement_type IN ('deposit','transfer_in') THEN amount ELSE -amount END),0) total")->value('total');
-        return ['book_balance'=>(string)$cash->balance,'movement_net'=>(string)$movements,'difference'=>Decimal::sub((string)$cash->balance,Decimal::normalize((string)$movements))];
+        return ['book_balance'=>(string)$cash->balance,'expected_balance'=>Decimal::add((string)$cash->opening_balance,Decimal::normalize((string)$movements)),'difference'=>$this->signedDifference((string)$cash->balance,Decimal::add((string)$cash->opening_balance,Decimal::normalize((string)$movements)))];
     }
 
     public function collectorCustody(int $stationId,int $collectorAccountId): array
@@ -41,20 +41,24 @@ final class StationReconciliationService
         $account=CollectorAccount::query()->whereKey($collectorAccountId)->where('station_id',$stationId)->firstOrFail();
         $payments=Payment::query()->where('station_id',$stationId)->where('collector_id',$account->collector_id)->where('status','posted')->selectRaw('COALESCE(SUM(amount),0) total')->value('total');
         $settlements=CollectionSettlement::query()->where('station_id',$stationId)->where('collector_account_id',$account->id)->where('status','posted')->selectRaw('COALESCE(SUM(amount),0) total')->value('total');
-        $expected=Decimal::sub(Decimal::normalize((string)$payments),Decimal::normalize((string)$settlements));
-        return ['account_balance'=>(string)$account->balance,'expected_balance'=>$expected,'difference'=>Decimal::sub((string)$account->balance,$expected)];
+        $expected=Decimal::add((string)$account->opening_balance,Decimal::sub(Decimal::normalize((string)$payments),Decimal::normalize((string)$settlements)));
+        return ['account_balance'=>(string)$account->balance,'expected_balance'=>$expected,'difference'=>$this->signedDifference((string)$account->balance,$expected)];
     }
 
     public function fuel(int $stationId,int $fuelTankId): array
     {
         $net=DB::table('fuel_stock_movements')->where('station_id',$stationId)->where('fuel_tank_id',$fuelTankId)->selectRaw("COALESCE(SUM(CASE WHEN movement_type='receipt' THEN quantity WHEN movement_type='issue' THEN -quantity ELSE quantity END),0) total")->value('total');
         $tank=DB::table('fuel_tanks')->where('id',$fuelTankId)->where('station_id',$stationId)->value('current_quantity');
-        return ['tank_balance'=>(string)$tank,'movement_net'=>Decimal::normalize((string)$net),'difference'=>Decimal::sub((string)$tank,Decimal::normalize((string)$net))];
+        $opening=DB::table('fuel_tanks')->where('id',$fuelTankId)->value('opening_quantity');
+        $expected=Decimal::add((string)$opening,Decimal::normalize((string)$net));
+        return ['tank_balance'=>(string)$tank,'expected_balance'=>$expected,'difference'=>$this->signedDifference((string)$tank,$expected)];
     }
+
+    private function signedDifference(string $actual,string $expected): string { return Decimal::compare($actual,$expected)>=0 ? Decimal::sub($actual,$expected) : '-'.Decimal::sub($expected,$actual); }
 
     private function result(string $expected,string $actual): array
     {
         $expected=Decimal::normalize($expected); $actual=Decimal::normalize($actual);
-        return ['expected'=>$expected,'actual'=>$actual,'difference'=>Decimal::sub($expected,$actual),'balanced'=>Decimal::compare($expected,$actual)===0];
+        return ['expected'=>$expected,'actual'=>$actual,'difference'=>$this->signedDifference($expected,$actual),'balanced'=>Decimal::compare($expected,$actual)===0];
     }
 }
