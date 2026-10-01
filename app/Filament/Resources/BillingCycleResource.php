@@ -56,8 +56,8 @@ class BillingCycleResource extends Resource
     }
 
     public static function canViewAny(): bool { return auth()->user()?->can('billing.view') ?? false; }
-    public static function canCreate(): bool { return (auth()->user()?->can('billing.manage') ?? false) && app(StationContext::class)->currentId() !== null; }
-    public static function canEdit($record): bool { return auth()->user()?->can('billing.manage') ?? false; }
+    public static function canCreate(): bool { return false; }
+    public static function canEdit($record): bool { return false; }
     public static function canDelete($record): bool { return false; }
 
     public static function getPages(): array
