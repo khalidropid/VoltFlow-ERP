@@ -30,7 +30,11 @@ trait StationScopedResource
 
     public static function canEdit($record): bool
     {
-        return auth()->user()?->can(static::$managePermission) ?? false;
+        $stationId = app(StationContext::class)->currentId();
+
+        return $stationId !== null
+            && (int) $record->station_id === (int) $stationId
+            && (auth()->user()?->can(static::$managePermission) ?? false);
     }
 
     public static function canDelete($record): bool
