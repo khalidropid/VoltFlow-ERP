@@ -53,6 +53,8 @@ final class BillingCycleService
                 throw new RuntimeException('Billing cycle reading range must be inside the billing period.');
             }
 
+            if (BillingCycle::query()->where('station_id',$stationId)->where('billing_period_id',$period->id)->whereIn('status',['draft','processing','completed'])->whereDate('reading_from','<=',$readingTo)->whereDate('reading_to','>=',$readingFrom)->exists()) throw new RuntimeException('Billing cycle reading range overlaps an existing cycle.');
+
             return BillingCycle::create([
                 'station_id' => $stationId,
                 'billing_period_id' => $period->id,
