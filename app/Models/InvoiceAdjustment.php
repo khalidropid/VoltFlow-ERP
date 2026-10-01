@@ -11,3 +11,5 @@ class InvoiceAdjustment extends Model
     public function invoice(){return $this->belongsTo(Invoice::class);}
     public function creator(){return $this->belongsTo(User::class,'created_by');}
 }
+
+public function journalEntry() { return $this->belongsTo(\App\Models\JournalEntry::class); }
