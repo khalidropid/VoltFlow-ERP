@@ -46,7 +46,7 @@ class AccessControlSeeder extends Seeder
             'accounting.post',
             'banking.manage',
             'reports.view',
-            'audit.view',
+            'audit.view', 'integration.view', 'integration.manage',
             'access.manage',
         ];
 
