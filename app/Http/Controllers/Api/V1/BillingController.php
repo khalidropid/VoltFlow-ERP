@@ -26,10 +26,10 @@ final class BillingController extends Controller
     {
         $data=$request->validate([
             'station_id'=>['required','integer'],'reading_id'=>['required','integer'],'invoice_uuid'=>['required','uuid'],
-            'invoice_number'=>['required','string','max:50'],'invoice_date'=>['required','date'],'due_date'=>['nullable','date'],
+            'invoice_number'=>['required','string','max:50'],'invoice_date'=>['required','date'],'due_date'=>['nullable','date'],'billing_cycle_id'=>['nullable','integer'],
         ]);
         $reading=MeterReading::query()->whereKey($data['reading_id'])->where('station_id',$data['station_id'])->firstOrFail();
-        $invoice=$service->issueForReading($data['station_id'],$reading,$data['invoice_uuid'],$data['invoice_number'],$data['invoice_date'],$data['due_date']??null);
+        $invoice=$service->issueForReading($data['station_id'],$reading,$data['invoice_uuid'],$data['invoice_number'],$data['invoice_date'],$data['due_date']??null,$data['billing_cycle_id']??null);
         return response()->json(['data'=>$invoice->load('items')],201);
     }
 }
