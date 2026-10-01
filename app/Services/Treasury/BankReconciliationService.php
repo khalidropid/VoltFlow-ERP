@@ -26,8 +26,9 @@ final class BankReconciliationService
             if(Decimal::compare($value,'0')<=0) throw new RuntimeException('Matched amount must be positive.');
             $item=BankReconciliationItem::firstOrCreate(['bank_reconciliation_id'=>$recon->id,'bank_transaction_id'=>$tx->id],['matched_amount'=>$value]);
             $tx->update(['status'=>'reconciled']);
-            $book=(string)BankTransaction::query()->where('cash_account_id',$recon->cash_account_id)->whereDate('transaction_date','<=',$recon->statement_date)->sum(DB::raw('debit-credit'));
-            $difference=Decimal::sub((string)$recon->statement_balance,number_format((float)$book,4,'.',''));
+            $bookRaw=BankTransaction::query()->where('station_id',$stationId)->where('cash_account_id',$recon->cash_account_id)->whereDate('transaction_date','<=',$recon->statement_date)->selectRaw('COALESCE(SUM(debit - credit), 0) as book_balance')->value('book_balance');
+            $book=Decimal::normalize((string)$bookRaw);
+            $difference=Decimal::compare((string)$recon->statement_balance,$book)>=0 ? Decimal::sub((string)$recon->statement_balance,$book) : '-'.Decimal::sub($book,(string)$recon->statement_balance);
             $recon->update(['book_balance'=>$book,'difference'=>$difference]);
             return $item;
         });
