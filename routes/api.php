@@ -15,9 +15,9 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
-        Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('idempotent');
+        Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware(['idempotent', 'audit.api']);
 
-        Route::middleware(['station.access', 'idempotent'])->group(function () {
+        Route::middleware(['station.access', 'idempotent', 'audit.api'])->group(function () {
             Route::post('/collections', [CollectionController::class, 'store']);
             Route::post('/billing/readings', [BillingController::class, 'reading']);
             Route::post('/billing/invoices', [BillingController::class, 'invoice']);
