@@ -12,12 +12,18 @@ use RuntimeException;
 
 class BillingService
 {
-    public function issueForReading(int $stationId, MeterReading $reading, string $invoiceUuid, string $invoiceNumber, string $invoiceDate, ?string $dueDate = null): Invoice
+    public function issueForReading(int $stationId, MeterReading $reading, string $invoiceUuid, string $invoiceNumber, string $invoiceDate, ?string $dueDate = null, ?int $billingCycleId = null): Invoice
     {
-        return DB::transaction(function () use ($stationId, $reading, $invoiceUuid, $invoiceNumber, $invoiceDate, $dueDate) {
+        return DB::transaction(function () use ($stationId, $reading, $invoiceUuid, $invoiceNumber, $invoiceDate, $dueDate, $billingCycleId) {
             $reading->loadMissing('meter.customer');
             if ($reading->station_id !== $stationId || $reading->status !== 'validated') throw new RuntimeException('The reading is not valid for billing.');
+            if ($existing = Invoice::query()->where('transaction_uuid', $invoiceUuid)->first()) return $existing;
             if (Invoice::query()->where('reading_id', $reading->id)->exists()) throw new RuntimeException('This reading has already been invoiced.');
+            if ($billingCycleId !== null) {
+                $cycle = \App\Models\BillingCycle::query()->whereKey($billingCycleId)->where('station_id', $stationId)->firstOrFail();
+                if ($cycle->status !== 'processing') throw new RuntimeException('Billing cycle must be processing before invoices are issued.');
+                if ($reading->reading_at->toDateString() < $cycle->reading_from->toDateString() || $reading->reading_at->toDateString() > $cycle->reading_to->toDateString()) throw new RuntimeException('Reading is outside the billing cycle.');
+            }
 
             $tariff = CustomerTariff::query()
                 ->where('station_id', $stationId)
@@ -61,7 +67,7 @@ class BillingService
             $invoice = Invoice::create([
                 'transaction_uuid' => $invoiceUuid, 'station_id' => $stationId,
                 'customer_id' => $reading->meter->customer_id, 'meter_id' => $reading->meter_id,
-                'reading_id' => $reading->id, 'tariff_id' => $tariff->id, 'number' => $invoiceNumber,
+                'reading_id' => $reading->id, 'tariff_id' => $tariff->id, 'billing_cycle_id' => $billingCycleId, 'number' => $invoiceNumber,
                 'invoice_date' => $invoiceDate, 'due_date' => $dueDate,
                 'previous_reading' => $reading->previous_reading_value, 'current_reading' => $reading->reading_value,
                 'consumption' => $reading->consumption, 'subtotal' => $subtotal,
