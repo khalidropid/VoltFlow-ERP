@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use App\Support\StationContext;
 
 class EnsureStationAccess
 {
@@ -19,6 +20,8 @@ class EnsureStationAccess
         if ($token && !$token->can('station:' . $stationId)) {
             return response()->json(['message' => 'The current token is not authorized for this station.'], 403);
         }
+
+        app(StationContext::class)->set((int) $stationId);
 
         return $next($request);
     }
